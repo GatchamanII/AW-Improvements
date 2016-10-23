@@ -4,16 +4,18 @@
 // @description   Add UKP review link to AW and moves some stats to the top of the page
 // @include       https://www.adultwork.com/*
 // @include       http://www.adultwork.com/*
-// @version     1
+// @version     1.0.1
 // ==/UserScript==
 
 if(sU && sU === parseInt(sU, 10)) {
 	document.body.innerHTML = document.body.innerHTML.replace("<a href=\"javascript:void(0)\" onclick=\"viewRating","<a target=\"_blank\" href=\"//www.google.com/webhp?#q=inurl%3A%22ukpunting.com%2Findex.php%3Faction%3Dserviceprovider%22+"+sU+"\">UKP</a>&nbsp;&nbsp;&nbsp;<a href=\"javascript:void(0)\" onclick=\"viewRating");
 	
 	var age = "", county = "", nationality = "", town = "", chest = "", onehour = "---", checkinterview;
-	
-	onehour = "£" + document.getElementById("tdRI1").innerHTML;
-	
+	if(document.getElementById('tdRI1') !== null) {
+		onehour = "£" + document.getElementById("tdRI1").innerHTML;
+	} else if(document.getElementById('tdRO1') !== null) {
+		onehour = "Outcall £" + document.getElementById("tdRO1").innerHTML;
+	}
 	
 	var myRegexp = /<td class="Label" align="right">([A-Za-z ]+):<\/td>\n *<td[^>]*>([^<]+)/g;
 	var match;
