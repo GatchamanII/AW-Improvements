@@ -1,26 +1,131 @@
 // ==UserScript==
-// @name          AW improvements
-// @namespace     *
-// @description   Add UKP review link to AW and moves some stats to the top of the page
-// @include       https://www.adultwork.com/*
-// @include       http://www.adultwork.com/*
-// @version     1.0.1
+// @name        AW improvements
+// @namespace   *
+// @description Add UKP review link and counts to AW and moves some stats to the top of the page
+// @include     https://www.adultwork.com/*
+// @include     http://www.adultwork.com/*
+// @version     1.2
+// @grant       GM_xmlhttpRequest
+// @connect 	www.ukpunting.com
+// @require     https://code.jquery.com/jquery-3.1.0.min.js
 // ==/UserScript==
 
-if(sU && sU === parseInt(sU, 10)) {
-	document.body.innerHTML = document.body.innerHTML.replace("<a href=\"javascript:void(0)\" onclick=\"viewRating","<a target=\"_blank\" href=\"//www.google.com/webhp?#q=inurl%3A%22ukpunting.com%2Findex.php%3Faction%3Dserviceprovider%22+"+sU+"\">UKP</a>&nbsp;&nbsp;&nbsp;<a href=\"javascript:void(0)\" onclick=\"viewRating");
-	
+// Some formatting options
+var posColour = "green";
+var neuColour = "black";
+var negColour = "red";
+var reviewSeparator = "/";
+
+var patterns = {
+    galleryImage : /javascript:vGI\('(\d+%2Ejpg)','.*', '\d+'\)/g
+};
+
+// Function to inject a function into the page
+// Adapted from https://gist.github.com/nylen/6234717
+function inject(src) {
+    var el;
+    el       = document.createElement('script');
+    el.type  = 'text/javascript';
+    el.class = 'injected';
+    el.appendChild(document.createTextNode(src));
+    var head = document.head || document.getElementsByTagName('head')[0];
+    head.insertBefore(el, head.lastChild);
+}
+
+// Client side function to be injected (note no jQuery available on AW side)
+function viewFullSizeImages() {
+    var newWindow = window.open();
+    var html = document.getElementById("galleryPageContent").innerHTML;
+    newWindow.document.write(html);
+}
+
+function extractImages(re, text, linkRoot){
+    var images = [];
+    var tempMatch;
+    while ((tempMatch = re.exec(text)) !== null) {
+        images.push(linkRoot+tempMatch[1].replace("%2E", "."));
+    }
+    return images;
+}
+
+function generateGalleryPage(imageArray) {
+    var html = "";
+    //var html = "<html><head><title>Gallery</title><body>";
+    for(var i=0; i < imageArray.length; i++){
+        html += "<img style=\"max-width:100%\" src=\""+imageArray[i]+"\"></a><br />";
+    }
+    //html += "</body></html>";
+    return html;
+}
+
+// LINK TO IMAGES (Not dependent on on sU)
+
+var galleryImages = extractImages(patterns.galleryImage, document.body.innerHTML, "https://cg.adultwork.com/G12/");
+
+if (galleryImages.length > 0) {
+
+	inject(viewFullSizeImages);
+	$("body").append("<div style=\"display:none;\" id=\"galleryPageContent\">" + generateGalleryPage(galleryImages) + "</div>");
+
+	var imageLink = "<div style=\"float: right\"><a href=\"javascript:viewFullSizeImages();\">View these " + galleryImages.length + " pics Full Size</a></div>";
+
+	if ($("#tblGallery").length > 0) {
+		// viewprofile.asp (Gallery tab)
+		if ($("#tblGallery tbody tr:first td:first").html().indexOf("Showing most recent pictures") >= 0) {
+			// If multiple pages, add our link to existing first row (which contains link to view all)
+			$("#tblGallery tbody tr:first td:first").append(imageLink);
+		} else {
+			// If just the one page, add a new first row ontaining our link
+			$("#tblGallery tbody tr:first td:first").before('<tr><td colspan="5">'+imageLink+'</td></tr>'); 
+		}
+	} else {
+		// gallery.asp - when showing the full gallery
+		$("table[cellspacing=20] tbody tr:first td:first").before('<tr><td colspan="5">'+imageLink+'</td></tr>'); 
+	}	
+
+}
+
+if(typeof(sU) !== 'undefined' && sU && sU === parseInt(sU, 10)) {
+
+    // LINK TO UKP REVIEWS
+
+    // First add the UKP link via Google (as per the original script) in case the API doesn't work for some reason
+    var target = "<a href=\"javascript:void(0)\" onclick=\"viewRating";
+    var replacement1 = "<a target=\"_blank\" href=\"//www.google.com/webhp?#q=inurl%3A%22ukpunting.com%2Findex.php%3Faction%3Dserviceprovider%22+"+sU+"\">UKP</a>&nbsp;&nbsp;&nbsp;"+target;
+    document.body.innerHTML = document.body.innerHTML.replace(target,replacement1);
+
+	// Second, call the API, and if OK replace the Google search links with links direct to UKP and add review counts
+    var ret = GM_xmlhttpRequest({
+	  method: "GET",
+	  url: "https://www.ukpunting.com/aw2ukp.php?id="+sU,
+	  onload: function(res) {
+        var ukpData = JSON.parse(res.responseText);
+        if (ukpData.service_provider_id !== 0 && ukpData.review_count !== 0) {
+            var reviews = "(";
+            reviews += "<span style=\"color:" + posColour + "\">" + ukpData.positive_count + "</span>" + reviewSeparator;
+            reviews += "<span style=\"color:" + neuColour + "\">" + ukpData.neutral_count + "</span>" + reviewSeparator;
+            reviews += "<span style=\"color:" + negColour + "\">" + ukpData.negative_count + "</span>";
+            reviews += ")";
+            var replacement2 = "<a target=\"_blank\" href=\"https://www.ukpunting.com/index.php?action=serviceprovider;id="+ukpData.service_provider_id+"\">UKP</a>&nbsp;"+reviews+"&nbsp;&nbsp;&nbsp;"+target;
+            document.body.innerHTML = document.body.innerHTML.replace(replacement1,replacement2);
+        }
+
+	  }
+	});
+
+
+    // ALL ORIGINAL BELOW HERE ----------
+
 	var age = "", county = "", nationality = "", town = "", chest = "", onehour = "---", checkinterview;
 	if(document.getElementById('tdRI1') !== null) {
 		onehour = "£" + document.getElementById("tdRI1").innerHTML;
 	} else if(document.getElementById('tdRO1') !== null) {
 		onehour = "Outcall £" + document.getElementById("tdRO1").innerHTML;
 	}
-	
+
 	var myRegexp = /<td class="Label" align="right">([A-Za-z ]+):<\/td>\n *<td[^>]*>([^<]+)/g;
 	var match;
-	 
-	
+
 	do {
 		match = myRegexp.exec(document.getElementById("tblProfile").innerHTML);
 		if(match === null) continue;
