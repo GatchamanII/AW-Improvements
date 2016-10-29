@@ -4,7 +4,7 @@
 // @description Add UKP review link and counts to AW and moves some stats to the top of the page
 // @include     https://www.adultwork.com/*
 // @include     http://www.adultwork.com/*
-// @version     1.2
+// @version     1.2.1
 // @grant       GM_xmlhttpRequest
 // @connect 	www.ukpunting.com
 // @require     https://code.jquery.com/jquery-3.1.0.min.js
@@ -17,8 +17,17 @@ var negColour = "red";
 var reviewSeparator = "/";
 
 var patterns = {
-    galleryImage : /javascript:vGI\('(\d+%2Ejpg)','.*', '\d+'\)/g
+    galleryImage : /javascript:vGI\('(\d+%2Ejpg)','.*', '\d+'\)/g,
+	userId : /[\?\&]userid=([^\&\#]+)[\&\#]/i
 };
+
+// Function to check if variable is (or can be cast to) an integer
+// from http://stackoverflow.com/a/14794066
+function isInt(value) {
+  return !isNaN(value) && 
+         parseInt(Number(value)) == value && 
+         !isNaN(parseInt(value, 10));
+}
 
 // Function to inject a function into the page
 // Adapted from https://gist.github.com/nylen/6234717
@@ -35,7 +44,7 @@ function inject(src) {
 // Client side function to be injected (note no jQuery available on AW side)
 function viewFullSizeImages() {
     var newWindow = window.open();
-    var html = document.getElementById("galleryPageContent").innerHTML;
+    var html = document.getElementById("galleryPageContent").innerHTML.replace(/data-src/g,"src");
     newWindow.document.write(html);
 }
 
@@ -52,13 +61,13 @@ function generateGalleryPage(imageArray) {
     var html = "";
     //var html = "<html><head><title>Gallery</title><body>";
     for(var i=0; i < imageArray.length; i++){
-        html += "<img style=\"max-width:100%\" src=\""+imageArray[i]+"\"></a><br />";
+        html += "<img style=\"max-width:100%\" data-src=\""+imageArray[i]+"\"></a><br />";
     }
     //html += "</body></html>";
     return html;
 }
 
-// LINK TO IMAGES (Not dependent on on sU)
+// LINK TO IMAGES (Not dependent on on userId)
 
 var galleryImages = extractImages(patterns.galleryImage, document.body.innerHTML, "https://cg.adultwork.com/G12/");
 
@@ -85,19 +94,21 @@ if (galleryImages.length > 0) {
 
 }
 
-if(typeof(sU) !== 'undefined' && sU && sU === parseInt(sU, 10)) {
+// LINK TO UKP REVIEWS (if userId URL variable is present)
 
-    // LINK TO UKP REVIEWS
+var userId  = document.URL.match (patterns.userId) [1];
 
+if(isInt(userId)) {
+    
     // First add the UKP link via Google (as per the original script) in case the API doesn't work for some reason
     var target = "<a href=\"javascript:void(0)\" onclick=\"viewRating";
-    var replacement1 = "<a target=\"_blank\" href=\"//www.google.com/webhp?#q=inurl%3A%22ukpunting.com%2Findex.php%3Faction%3Dserviceprovider%22+"+sU+"\">UKP</a>&nbsp;&nbsp;&nbsp;"+target;
+    var replacement1 = "<a target=\"_blank\" href=\"//www.google.com/webhp?#q=inurl%3A%22ukpunting.com%2Findex.php%3Faction%3Dserviceprovider%22+"+userId+"\">UKP</a>&nbsp;&nbsp;&nbsp;"+target;
     document.body.innerHTML = document.body.innerHTML.replace(target,replacement1);
 
 	// Second, call the API, and if OK replace the Google search links with links direct to UKP and add review counts
     var ret = GM_xmlhttpRequest({
 	  method: "GET",
-	  url: "https://www.ukpunting.com/aw2ukp.php?id="+sU,
+	  url: "https://www.ukpunting.com/aw2ukp.php?id="+userId,
 	  onload: function(res) {
         var ukpData = JSON.parse(res.responseText);
         if (ukpData.service_provider_id !== 0 && ukpData.review_count !== 0) {
@@ -184,7 +195,7 @@ if(typeof(sU) !== 'undefined' && sU && sU === parseInt(sU, 10)) {
 				elements[2] = elements[1];
 				elements[1] = "\" breast";
 			}
-			chest = (elements[2] == "Natural" ? "Real":(elements[2] == "Enhanced" ? "Fake":"")) + " " + elements[0].substring(0, elements[0].length - 1) + elements[1] + "s";
+			chest = (elements[2] == "Natural" ? "Real":(elements[2] == "Enhanced" ? "Fake":"")) + " " + elements[0].userIdbstring(0, elements[0].length - 1) + elements[1] + "s";
 		}
 	}
 	var navbar, newElement;
@@ -201,7 +212,7 @@ if(typeof(sU) !== 'undefined' && sU && sU === parseInt(sU, 10)) {
 		str2+= " | " + onehour;
 		if(!town && county) town = county;
 		if(town.length) {
-			str2+= " | " +(town.length>17?town.substring(0,14)+"...":town);
+			str2+= " | " +(town.length>17?town.userIdbstring(0,14)+"...":town);
 		}
 		var t = document.createTextNode(str2);
 		newElement.appendChild(t);       
