@@ -4,7 +4,7 @@
 // @description Add UKP review link and counts to AW and moves some stats to the top of the page
 // @include     https://www.adultwork.com/*
 // @include     http://www.adultwork.com/*
-// @version     1.2.1
+// @version     1.2.2
 // @grant       GM_xmlhttpRequest
 // @connect 	www.ukpunting.com
 // @require     https://code.jquery.com/jquery-3.1.0.min.js
@@ -195,7 +195,7 @@ if(isInt(userId)) {
 				elements[2] = elements[1];
 				elements[1] = "\" breast";
 			}
-			chest = (elements[2] == "Natural" ? "Real":(elements[2] == "Enhanced" ? "Fake":"")) + " " + elements[0].userIdbstring(0, elements[0].length - 1) + elements[1] + "s";
+			chest = (elements[2] == "Natural" ? "Real":(elements[2] == "Enhanced" ? "Fake":"")) + " " + elements[0].substring(0, elements[0].length - 1) + elements[1] + "s";
 		}
 	}
 	var navbar, newElement;
@@ -212,7 +212,7 @@ if(isInt(userId)) {
 		str2+= " | " + onehour;
 		if(!town && county) town = county;
 		if(town.length) {
-			str2+= " | " +(town.length>17?town.userIdbstring(0,14)+"...":town);
+			str2+= " | " +(town.length>17?town.substring(0,14)+"...":town);
 		}
 		var t = document.createTextNode(str2);
 		newElement.appendChild(t);       
