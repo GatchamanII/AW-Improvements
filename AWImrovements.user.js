@@ -18,7 +18,7 @@ var reviewSeparator = "/";
 
 var patterns = {
     galleryImage : /javascript:vGI\('(\d+%2Ejpg)','.*', '\d+'\)/g,
-	userId : /[\?\&]userid=([^\&\#]+)[\&\#]/i
+	userId : /[\?\&]userid=([^\&\#]+)/i	
 };
 
 // Function to check if variable is (or can be cast to) an integer
