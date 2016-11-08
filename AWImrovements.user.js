@@ -29,6 +29,13 @@ function isInt(value) {
          !isNaN(parseInt(value, 10));
 }
 
+// Function to format UNIX date value (seconds since Epoch) as dd/mm/yyyy 
+// Technique courtesy of http://stackoverflow.com/a/30272803
+function formatUnixDate(seconds) {
+	var d = new Date(1000*seconds);
+	return ("0" + d.getDate()).slice(-2) + "/" + ("0"+(d.getMonth()+1)).slice(-2) + "/" + d.getFullYear();
+}
+
 // Function to inject a function into the page
 // Adapted from https://gist.github.com/nylen/6234717
 function inject(src) {
@@ -106,22 +113,27 @@ if(isInt(userId)) {
     document.body.innerHTML = document.body.innerHTML.replace(target,replacement1);
 
 	// Second, call the API, and if OK replace the Google search links with links direct to UKP and add review counts
-    var ret = GM_xmlhttpRequest({
-	  method: "GET",
-	  url: "https://www.ukpunting.com/aw2ukp.php?id="+userId,
-	  onload: function(res) {
-        var ukpData = JSON.parse(res.responseText);
-        if (ukpData.service_provider_id !== 0 && ukpData.review_count !== 0) {
-            var reviews = "(";
-            reviews += "<span style=\"color:" + posColour + "\">" + ukpData.positive_count + "</span>" + reviewSeparator;
-            reviews += "<span style=\"color:" + neuColour + "\">" + ukpData.neutral_count + "</span>" + reviewSeparator;
-            reviews += "<span style=\"color:" + negColour + "\">" + ukpData.negative_count + "</span>";
-            reviews += ")";
-            var replacement2 = "<a target=\"_blank\" href=\"https://www.ukpunting.com/index.php?action=serviceprovider;id="+ukpData.service_provider_id+"\">UKP</a>&nbsp;"+reviews+"&nbsp;&nbsp;&nbsp;"+target;
-            document.body.innerHTML = document.body.innerHTML.replace(replacement1,replacement2);
-        }
-
-	  }
+	var ret = GM_xmlhttpRequest({
+		method: "GET",
+		url: "https://www.ukpunting.com/aw2ukp.php?id="+userId,
+		onload: function(res) {
+			var ukpData = JSON.parse(res.responseText);
+			if (ukpData.service_provider_id !== 0 && ukpData.review_count !== 0) {
+				var firstReview = formatUnixDate(ukpData.first_review_time);
+				var lastReview = formatUnixDate(ukpData.last_review_time);
+				var reviewTooltip = ukpData.review_count + " review(s) between " + firstReview + " and " + lastReview;
+				var reviews = "(";
+				reviews += "<span style=\"color:" + posColour + "\">" + ukpData.positive_count + "</span>" + reviewSeparator;
+				reviews += "<span style=\"color:" + neuColour + "\">" + ukpData.neutral_count + "</span>" + reviewSeparator;
+				reviews += "<span style=\"color:" + negColour + "\">" + ukpData.negative_count + "</span>";
+				reviews += ")";
+				var replacement2 = "<span title=\"" + reviewTooltip + "\">"; 
+				replacement2 += "<a target=\"_blank\" href=\"https://www.ukpunting.com/index.php?action=serviceprovider;id="+ukpData.service_provider_id+"\">UKP</a>"
+				replacement2 += "&nbsp;"+reviews+"&nbsp;&nbsp;&nbsp;"+target;
+				replacement2 += "</span>"
+				document.body.innerHTML = document.body.innerHTML.replace(replacement1,replacement2);
+			}
+		}
 	});
 
 
