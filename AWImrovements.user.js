@@ -102,7 +102,10 @@ if (galleryImages.length > 0) {
 
 // LINK TO UKP REVIEWS (if userId URL variable is present)
 
-var userId  = document.URL.match (patterns.userId) [1];
+var matches = document.URL.match (patterns.userId);
+if (matches !== null) {
+	var userId  = document.URL.match (patterns.userId) [1];
+}
 
 if(isInt(userId)) {
 
