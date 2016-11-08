@@ -65,12 +65,11 @@ function extractImages(re, text, linkRoot){
 }
 
 function generateGalleryPage(imageArray) {
-	var html = "";
-	//var html = "<html><head><title>Gallery</title><body>";
+	var html = "<html><head><title>Gallery</title><body>";
 	for(var i=0; i < imageArray.length; i++){
 		html += "<img style=\"max-width:100%\" data-src=\""+imageArray[i]+"\"></a><br />";
 	}
-	//html += "</body></html>";
+	html += "</body></html>";
 	return html;
 }
 
