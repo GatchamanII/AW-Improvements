@@ -1,13 +1,13 @@
 // ==UserScript==
-// @name        AW improvements
-// @namespace   *
-// @description Add UKP review link and counts to AW and moves some stats to the top of the page
-// @include     https://www.adultwork.com/*
-// @include     http://www.adultwork.com/*
-// @version     1.2.2
-// @grant       GM_xmlhttpRequest
-// @connect 	www.ukpunting.com
-// @require     https://code.jquery.com/jquery-3.1.0.min.js
+// @name		AW improvements
+// @namespace	*
+// @description	Add UKP review link and counts to AW and moves some stats to the top of the page
+// @include		https://www.adultwork.com/*
+// @include		http://www.adultwork.com/*
+// @version		1.2.2
+// @grant		GM_xmlhttpRequest
+// @connect		www.ukpunting.com
+// @require		https://code.jquery.com/jquery-3.1.0.min.js
 // ==/UserScript==
 
 // Some formatting options
@@ -17,16 +17,16 @@ var negColour = "red";
 var reviewSeparator = "/";
 
 var patterns = {
-    galleryImage : /javascript:vGI\('(\d+%2Ejpg)','.*', '\d+'\)/g,
+	galleryImage : /javascript:vGI\('(\d+%2Ejpg)','.*', '\d+'\)/g,
 	userId : /[\?\&]userid=([^\&\#]+)/i	
 };
 
 // Function to check if variable is (or can be cast to) an integer
 // from http://stackoverflow.com/a/14794066
 function isInt(value) {
-  return !isNaN(value) && 
-         parseInt(Number(value)) == value && 
-         !isNaN(parseInt(value, 10));
+	return !isNaN(value) && 
+		parseInt(Number(value)) == value && 
+		!isNaN(parseInt(value, 10));
 }
 
 // Function to format UNIX date value (seconds since Epoch) as dd/mm/yyyy 
@@ -39,39 +39,39 @@ function formatUnixDate(seconds) {
 // Function to inject a function into the page
 // Adapted from https://gist.github.com/nylen/6234717
 function inject(src) {
-    var el;
-    el       = document.createElement('script');
-    el.type  = 'text/javascript';
-    el.class = 'injected';
-    el.appendChild(document.createTextNode(src));
-    var head = document.head || document.getElementsByTagName('head')[0];
-    head.insertBefore(el, head.lastChild);
+	var el;
+	el       = document.createElement('script');
+	el.type  = 'text/javascript';
+	el.class = 'injected';
+	el.appendChild(document.createTextNode(src));
+	var head = document.head || document.getElementsByTagName('head')[0];
+	head.insertBefore(el, head.lastChild);
 }
 
 // Client side function to be injected (note no jQuery available on AW side)
 function viewFullSizeImages() {
-    var newWindow = window.open();
-    var html = document.getElementById("galleryPageContent").innerHTML.replace(/data-src/g,"src");
-    newWindow.document.write(html);
+	var newWindow = window.open();
+	var html = document.getElementById("galleryPageContent").innerHTML.replace(/data-src/g,"src");
+	newWindow.document.write(html);
 }
 
 function extractImages(re, text, linkRoot){
-    var images = [];
-    var tempMatch;
-    while ((tempMatch = re.exec(text)) !== null) {
-        images.push(linkRoot+tempMatch[1].replace("%2E", "."));
-    }
-    return images;
+	var images = [];
+	var tempMatch;
+	while ((tempMatch = re.exec(text)) !== null) {
+		images.push(linkRoot+tempMatch[1].replace("%2E", "."));
+	}
+	return images;
 }
 
 function generateGalleryPage(imageArray) {
-    var html = "";
-    //var html = "<html><head><title>Gallery</title><body>";
-    for(var i=0; i < imageArray.length; i++){
-        html += "<img style=\"max-width:100%\" data-src=\""+imageArray[i]+"\"></a><br />";
-    }
-    //html += "</body></html>";
-    return html;
+	var html = "";
+	//var html = "<html><head><title>Gallery</title><body>";
+	for(var i=0; i < imageArray.length; i++){
+		html += "<img style=\"max-width:100%\" data-src=\""+imageArray[i]+"\"></a><br />";
+	}
+	//html += "</body></html>";
+	return html;
 }
 
 // LINK TO IMAGES (Not dependent on on userId)
@@ -106,11 +106,11 @@ if (galleryImages.length > 0) {
 var userId  = document.URL.match (patterns.userId) [1];
 
 if(isInt(userId)) {
-    
-    // First add the UKP link via Google (as per the original script) in case the API doesn't work for some reason
-    var target = "<a href=\"javascript:void(0)\" onclick=\"viewRating";
-    var replacement1 = "<a target=\"_blank\" href=\"//www.google.com/webhp?#q=inurl%3A%22ukpunting.com%2Findex.php%3Faction%3Dserviceprovider%22+"+userId+"\">UKP</a>&nbsp;&nbsp;&nbsp;"+target;
-    document.body.innerHTML = document.body.innerHTML.replace(target,replacement1);
+
+	// First add the UKP link via Google (as per the original script) in case the API doesn't work for some reason
+	var target = "<a href=\"javascript:void(0)\" onclick=\"viewRating";
+	var replacement1 = "<a target=\"_blank\" href=\"//www.google.com/webhp?#q=inurl%3A%22ukpunting.com%2Findex.php%3Faction%3Dserviceprovider%22+"+userId+"\">UKP</a>&nbsp;&nbsp;&nbsp;"+target;
+	document.body.innerHTML = document.body.innerHTML.replace(target,replacement1);
 
 	// Second, call the API, and if OK replace the Google search links with links direct to UKP and add review counts
 	var ret = GM_xmlhttpRequest({
@@ -137,7 +137,7 @@ if(isInt(userId)) {
 	});
 
 
-    // ALL ORIGINAL BELOW HERE ----------
+	// ALL ORIGINAL BELOW HERE ----------
 
 	var age = "", county = "", nationality = "", town = "", chest = "", onehour = "---", checkinterview;
 	if(document.getElementById('tdRI1') !== null) {
