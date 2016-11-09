@@ -4,7 +4,7 @@
 // @description	Add UKP review link and counts to AW and moves some stats to the top of the page
 // @include		https://www.adultwork.com/*
 // @include		http://www.adultwork.com/*
-// @version		1.2.2
+// @version		1.2.3
 // @grant		GM_xmlhttpRequest
 // @connect		www.ukpunting.com
 // @require		https://code.jquery.com/jquery-3.1.0.min.js
