@@ -16,7 +16,7 @@ var neuColour = "black";
 var negColour = "red";
 var reviewSeparator = "/";
 
-var separator = "&middot;";
+var separator = "\u00B7";
 
 var patterns = {
 	galleryImage : /javascript:vGI\('(\d+%2Ejpg)','.*', '\d+'\)/g,
@@ -234,7 +234,7 @@ if(isInt(userId)) {
 		newElement = document.createElement('p');
 		var str2 = age;
 		if('Dress_Size' in interview) {
-			str2 += " " + separator + " Size: " + interview.Dress_Size;
+			str2 += " " + separator + " Size " + interview.Dress_Size;
 		}
 		if(chest.length) {
 			str2 += " " + separator + " " +chest;
