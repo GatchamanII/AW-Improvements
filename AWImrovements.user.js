@@ -4,11 +4,17 @@
 // @description	Add UKP review link and counts to AW and moves some stats to the top of the page
 // @include		https://www.adultwork.com/*
 // @include		http://www.adultwork.com/*
-// @version		1.2.3
+// @version		1.2.4
 // @grant		GM_xmlhttpRequest
 // @connect		www.ukpunting.com
 // @require		https://code.jquery.com/jquery-3.1.0.min.js
 // ==/UserScript==
+
+// CONFIGURATION
+// Change this to change which rate will be displayed
+// Possible values (hours):
+// 0.25, 0.5, 1, 1.5, 2, 3, 4, 10 (=overnight) 
+var preferredDuration = 1;
 
 // Some formatting options
 var posColour = "green";
@@ -153,11 +159,11 @@ if(isInt(userId)) {
 
 	// ALL ORIGINAL BELOW HERE ----------
 
-	var age = "", county = "", nationality = "", town = "", chest = "", onehour = "---", checkinterview;
-	if(document.getElementById('tdRI1') !== null) {
-		onehour = "£" + document.getElementById("tdRI1").innerHTML;
-	} else if(document.getElementById('tdRO1') !== null) {
-		onehour = "Outcall £" + document.getElementById("tdRO1").innerHTML;
+	var age = "", county = "", nationality = "", town = "", chest = "", rate = "£???", checkinterview;
+	if(document.getElementById('tdRI' + preferredDuration) !== null && document.getElementById('tdRI' + preferredDuration).innerHTML !== "&nbsp;") {
+		rate = "£" + document.getElementById("tdRI" + preferredDuration).innerHTML;
+	} else if(document.getElementById('tdRO' + preferredDuration) !== null && document.getElementById('tdRO' + preferredDuration).innerHTML !== "&nbsp;") {
+		rate = "Outcall £" + document.getElementById("tdRO" + preferredDuration).innerHTML;
 	}
 
 	var myRegexp = /<td class="Label" align="right">([A-Za-z ]+):<\/td>\n *<td[^>]*>([^<]+)/g;
@@ -215,12 +221,12 @@ if(isInt(userId)) {
 			if((band||cup) && authenticity) {
 				chest = (authenticity == "Natural" ? "Real":(authenticity == "Enhanced" ? "Fake":"")) + " " + chest;
 			}
-		}		
+		}
 	} else {
 		var elements = match[1].split(" ");
 		if(elements.length == 1) {
 			chest = elements[0] + " breasts";
-		} else {			
+		} else {
 			if(elements[1] == "Enhanced" || elements[1] == "Natural") {
 				elements[2] = elements[1];
 				elements[1] = "\" breast";
@@ -242,23 +248,23 @@ if(isInt(userId)) {
 		if(nationality.length) {
 			str2 += " " + separator + " " +nationality;
 		}
-		str2 += " " + separator + " " + onehour;
+		str2 += " " + separator + " " + rate;
 		if(!town && county) town = county;
 		if(town.length) {
 			str2 += " " + separator + " " +(town.length>17?town.substring(0,14)+"...":town);
 		}
 		var t = document.createTextNode(str2);
-		newElement.appendChild(t);       
+		newElement.appendChild(t);
 		navbar[0].parentNode.insertBefore(newElement, navbar[0].nextSibling);
-		
+
 		if(document.getElementById("dPref").innerHTML.indexOf("<td class=\"Padded\" nowrap=\"\">Bareback</td>") > -1 || document.getElementById("dPref").innerHTML.indexOf("<td class=\"Padded\" nowrap=\"\">Unprotected Sex</td>") > -1) {
 			newElement2 = document.createElement('p');
 			var t2 = document.createTextNode("Caution: Enjoys bareback");
-			newElement2.appendChild(t2);       
+			newElement2.appendChild(t2);
 			navbar[0].parentNode.insertBefore(newElement2, navbar[0].nextSibling);
 		}
 	}
-	
+
 } else {
 	document.body.innerHTML = document.body.innerHTML.replace( /&nbsp;\(<a href="javascript:void\(0\)" onclick="viewRating\((\d+)\)/g ,"&nbsp;<a target=\"_blank\" href=\"//www.google.com/webhp?#q=inurl%3A%22ukpunting.com%2Findex.php%3Faction%3Dserviceprovider%22+$1\">UKP</a>&nbsp;(<a href=\"javascript:void(0)\" onclick=\"viewRating($1)");
 }
