@@ -130,9 +130,9 @@ if(isInt(userId)) {
 				reviews += "<span style=\"color:" + negColour + "\">" + ukpData.negative_count + "</span>";
 				reviews += ")";
 				var replacement2 = "<span title=\"" + reviewTooltip + "\">"; 
-				replacement2 += "<a target=\"_blank\" href=\"https://www.ukpunting.com/index.php?action=serviceprovider;id="+ukpData.service_provider_id+"\">UKP</a>"
+				replacement2 += "<a target=\"_blank\" href=\"https://www.ukpunting.com/index.php?action=serviceprovider;id="+ukpData.service_provider_id+"\">UKP</a>";
 				replacement2 += "&nbsp;"+reviews+"&nbsp;&nbsp;&nbsp;"+target;
-				replacement2 += "</span>"
+				replacement2 += "</span>";
 				document.body.innerHTML = document.body.innerHTML.replace(replacement1,replacement2);
 			}
 		}
