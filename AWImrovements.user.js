@@ -16,6 +16,8 @@ var neuColour = "black";
 var negColour = "red";
 var reviewSeparator = "/";
 
+var separator = "&middot;";
+
 var patterns = {
 	galleryImage : /javascript:vGI\('(\d+%2Ejpg)','.*', '\d+'\)/g,
 	userId : /[\?\&]userid=([^\&\#]+)/i,
@@ -232,18 +234,18 @@ if(isInt(userId)) {
 		newElement = document.createElement('p');
 		var str2 = age;
 		if('Dress_Size' in interview) {
-			str2+= " | Size: " + interview.Dress_Size;
+			str2 += " " + separator + " Size: " + interview.Dress_Size;
 		}
 		if(chest.length) {
-			str2+= " | " +chest;
+			str2 += " " + separator + " " +chest;
 		}
 		if(nationality.length) {
-			str2+= " | " +nationality;
+			str2 += " " + separator + " " +nationality;
 		}
-		str2+= " | " + onehour;
+		str2 += " " + separator + " " + onehour;
 		if(!town && county) town = county;
 		if(town.length) {
-			str2+= " | " +(town.length>17?town.substring(0,14)+"...":town);
+			str2 += " " + separator + " " +(town.length>17?town.substring(0,14)+"...":town);
 		}
 		var t = document.createTextNode(str2);
 		newElement.appendChild(t);       
