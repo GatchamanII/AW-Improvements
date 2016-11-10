@@ -18,7 +18,8 @@ var reviewSeparator = "/";
 
 var patterns = {
 	galleryImage : /javascript:vGI\('(\d+%2Ejpg)','.*', '\d+'\)/g,
-	userId : /[\?\&]userid=([^\&\#]+)/i
+	userId : /[\?\&]userid=([^\&\#]+)/i,
+	tblInterviewRow : /<td class="PaddedLabel" align="right">([^<]+)<\/td>\n[\t ]*<td class="Padded">([^<]+)<\/td>/g
 };
 
 // Function to check if variable is (or can be cast to) an integer
@@ -53,6 +54,15 @@ function viewFullSizeImages() {
 	var newWindow = window.open();
 	var html = document.getElementById("galleryPageContent").innerHTML.replace(/data-src/g,"src");
 	newWindow.document.write(html);
+}
+
+function extractTableData(re, text){
+	var data = {};
+	var tempMatch;
+	while ((tempMatch = re.exec(text)) !== null) {
+		data[tempMatch[1].replace(/ /g, "_")] = tempMatch[2];
+	}
+	return data;
 }
 
 function extractImages(re, text, linkRoot){
@@ -165,6 +175,10 @@ if(isInt(userId)) {
 		}
 	} while(match !== null);
 
+	var interview = {};
+	if(document.getElementById("tblInterview")){
+		interview = extractTableData(patterns.tblInterviewRow, document.getElementById("tblInterview").innerHTML);
+	}
 	myRegexp = /Chest Size:<\/td> <td class="Padded">([^<]+)<\/td>/g;
 
 	match = myRegexp.exec(document.getElementById("tblProfile").innerHTML);
@@ -217,6 +231,9 @@ if(isInt(userId)) {
 	if (navbar[0]) {
 		newElement = document.createElement('p');
 		var str2 = age;
+		if('Dress_Size' in interview) {
+			str2+= " | Size: " + interview.Dress_Size;
+		}
 		if(chest.length) {
 			str2+= " | " +chest;
 		}
