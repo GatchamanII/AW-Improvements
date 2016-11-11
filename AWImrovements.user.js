@@ -4,7 +4,7 @@
 // @description	Add UKP review link and counts to AW and moves some stats to the top of the page
 // @include		https://www.adultwork.com/*
 // @include		http://www.adultwork.com/*
-// @version		1.2.4
+// @version		1.2.5
 // @grant		GM_xmlhttpRequest
 // @connect		www.ukpunting.com
 // @require		https://code.jquery.com/jquery-3.1.0.min.js
@@ -149,8 +149,7 @@ if(isInt(userId)) {
 				reviews += ")";
 				var replacement2 = "<span title=\"" + reviewTooltip + "\">"; 
 				replacement2 += "<a target=\"_blank\" href=\"https://www.ukpunting.com/index.php?action=serviceprovider;id="+ukpData.service_provider_id+"\">UKP</a>";
-				replacement2 += "&nbsp;"+reviews+"&nbsp;&nbsp;&nbsp;"+target;
-				replacement2 += "</span>";
+				replacement2 += "&nbsp;"+reviews+"</span>&nbsp;&nbsp;&nbsp;"+target;
 				document.body.innerHTML = document.body.innerHTML.replace(replacement1,replacement2);
 			}
 		}
