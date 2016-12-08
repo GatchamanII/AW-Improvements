@@ -1,48 +1,142 @@
 // ==UserScript==
-// @name		AW improvements
+// @name		AW Improvements
 // @namespace	*
 // @description	Add UKP review link and counts to AW and moves some stats to the top of the page
 // @include		https://www.adultwork.com/*
 // @include		http://www.adultwork.com/*
-// @version		1.2.5
+// @version		1.3
+// @grant		GM_getValue
+// @grant		GM_setValue
 // @grant		GM_xmlhttpRequest
 // @connect		www.ukpunting.com
 // @require		https://code.jquery.com/jquery-3.1.0.min.js
 // ==/UserScript==
 
-// CONFIGURATION
-// Change this to change which rate will be displayed
-// Possible values (hours):
-// 0.25, 0.5, 1, 1.5, 2, 3, 4, 10 (=overnight) 
-var preferredDuration = 1;
+// GLOBAL VARIABLES =================================================
+var config = {
+	preferredDuration: 1
+};
 
-// Some formatting options
-var posColour = "green";
-var neuColour = "black";
-var negColour = "red";
-var reviewSeparator = "/";
+var interview = {}, preferences = [], profile = {};
 
-var separator = "\u00B7";
+// CONSTANTS ========================================================
+const durations = {
+	0.25: "15 min",
+	0.5:  "\u00BD hr",
+	1:    "hr",
+	1.5:  "1\u00BD hrs",
+	2:    "2 hrs",
+	3:    "3 hrs",
+	4:    "4 hrs",
+	10:   "overnight"
+};
 
-var patterns = {
+const configKey = "AWImprovementsConfig";
+
+const patterns = {
 	galleryImage : /javascript:vGI\('(\d+%2Ejpg)','.*', '\d+'\)/g,
 	userId : /[\?\&]userid=([^\&\#]+)/i,
-	tblInterviewRow : /<td class="PaddedLabel" align="right">([^<]+)<\/td>\n[\t ]*<td class="Padded">([^<]+)<\/td>/g
+	interviewRow : /<td class="PaddedLabel" align="right">([^<]+)<\/td>\n[\t ]*<td class="Padded">([^<]+)<\/td>/g,
+	preferencesRow : /<td class="Padded" nowrap="">([^<]+)<\/td>/g,
+	profileRow : /<td class="Label" align="right">([A-Za-z ]+):<\/td>\n *<td[^>]*>([^<]+)/g,
+	postcode : /https?:\/\/www\.adultwork\.com\/Loaders\/GT\.asp\?Town=[^&]+&Country=[^&]+&PostCode=([^']+)',/g,
+	profileLink : /Link to this Profile Page using (https?:\/\/www\.adultwork\.com\/[0-9]+  or <span itemprop="url">https?:\/\/www\.adultwork\.com\/[^<]+)/g
 };
+
+// Some formatting options
+const posColour = "green", neuColour = "black", negColour = "red", reviewSeparator = "/";
+const separator = "\u00B7"; // middot
+
+// HTML/CSS for injection
+const settingsFormHtml = `<form id="awiSettingsForm">
+	<h3>AW Improvements Settings</h3>
+	<table>
+		<tr>
+			<td>Duration:</td>
+			<td>
+				<select id="awiSettingsFieldDuration">
+					<option value="0.25">15 min</option>
+					<option value="0.5">\u00BD hr</option>
+					<option value="1">1 hr</option>
+					<option value="1.5">1\u00BD hrs</option>
+					<option value="2">2 hrs</option>
+					<option value="3">3 hrs</option>
+					<option value="4">4 hrs</option>
+					<option value="10">Overnight</option>
+				</select>
+			</td>
+		</tr>
+	</table><br><br>
+	<button type="button" id="awiSettingsSaveButton">Save</button>
+	<button type="button" id="awiSettingsCancelButton">Cancel</button>
+</form>
+<div id="awiPageMask"></div>`;
+
+const cssCode = `<style type="text/css">
+#awiSettingsForm {
+	position: absolute;
+	width: 200px;
+	height: 150px;
+	left: 50%;
+	top: 50%;
+	margin-left: -100px;
+	margin-top: -75px;
+	border: 1px solid black;
+	padding: 12px 16px;
+	background-color: white;
+	box-shadow: 0 8px 20px 0 rgba(0, 0, 0, 0.3), 0 30px 50px 0 rgba(0, 0, 0, 0.25);
+	border-radius: 5px;
+	z-index: 100;
+	display: none;
+}
+
+#awiPageMask {
+	background: rgba(0, 0, 0, 0.5);
+	position: fixed;
+	top: 0;
+	right: 0;
+	bottom: 0;
+	left: 0;
+	z-index: 99;
+	display: none;
+}
+
+#awiSettingsLink {
+	margin-left: 10px;
+	cursor: hand;
+}
+
+.awiWarning {
+	padding: 15px 0 15px 0;
+	font-weight: bold;
+}
+</style>`;
+
+function addCss() {
+	$('head').append(cssCode);
+}
+
+function loadConfig() {
+	config = JSON.parse(GM_getValue(configKey, JSON.stringify(config)));
+}
+
+function saveConfig() {
+	GM_setValue(configKey, JSON.stringify(config));
+}
 
 // Function to check if variable is (or can be cast to) an integer
 // from http://stackoverflow.com/a/14794066
 function isInt(value) {
-	return !isNaN(value) && 
-		parseInt(Number(value)) == value && 
+	return !isNaN(value) &&
+		parseInt(Number(value)) == value &&
 		!isNaN(parseInt(value, 10));
 }
 
-// Function to format UNIX date value (seconds since Epoch) as dd/mm/yyyy 
+// Function to format UNIX date value (seconds since Epoch) as dd/mm/yyyy
 // Technique courtesy of http://stackoverflow.com/a/30272803
 function formatUnixDate(seconds) {
 	var d = new Date(1000*seconds);
-	return ("0" + d.getDate()).slice(-2) + "/" + ("0"+(d.getMonth()+1)).slice(-2) + "/" + d.getFullYear();
+	return ('0' + d.getDate()).slice(-2) + '/' + ('0'+(d.getMonth()+1)).slice(-2) + '/' + d.getFullYear();
 }
 
 // Function to inject a function into the page
@@ -64,11 +158,24 @@ function viewFullSizeImages() {
 	newWindow.document.write(html);
 }
 
-function extractTableData(re, text){
+// FUNCTIONS TO EXRACT DATA FROM HTML TABLES ========================
+
+// For tables that are just a list (eg Preferences)
+function extractHtmlTableDataToArray(re, tableSelector) {
+	var data = [];
+	var tempMatch, value;
+	while ((tempMatch = re.exec($(tableSelector).html())) !== null) {
+		data.push(tempMatch[1].replace(/&amp;/g, 'and'));
+	}
+	return data;
+}
+
+// For tables with keys and values (eg interview)
+function extractHtmlTableDataToObject(re, tableSelector) {
 	var data = {};
-	var tempMatch;
-	while ((tempMatch = re.exec(text)) !== null) {
-		data[tempMatch[1].replace(/ /g, "_")] = tempMatch[2];
+	var tempMatch, value;
+	while ((tempMatch = re.exec($(tableSelector).html())) !== null) {
+		data[tempMatch[1].replace(/ /g, '_')] = tempMatch[2];
 	}
 	return data;
 }
@@ -77,7 +184,7 @@ function extractImages(re, text, linkRoot){
 	var images = [];
 	var tempMatch;
 	while ((tempMatch = re.exec(text)) !== null) {
-		images.push(linkRoot+tempMatch[1].replace("%2E", "."));
+		images.push(linkRoot+tempMatch[1].replace('%2E', '.'));
 	}
 	return images;
 }
@@ -91,42 +198,60 @@ function generateGalleryPage(imageArray) {
 	return html;
 }
 
-// LINK TO IMAGES (Not dependent on on userId)
+function addFullSizeImageLink() {
 
-var galleryImages = extractImages(patterns.galleryImage, document.body.innerHTML, "https://cg.adultwork.com/G12/");
+	var galleryImages = extractImages(patterns.galleryImage, document.body.innerHTML, "https://cg.adultwork.com/G12/");
 
-if (galleryImages.length > 0) {
+	if (galleryImages.length > 0) {
 
-	inject(viewFullSizeImages);
-	$("body").append("<div style=\"display:none;\" id=\"galleryPageContent\">" + generateGalleryPage(galleryImages) + "</div>");
+		inject(viewFullSizeImages);
+		$("body").append("<div style=\"display:none;\" id=\"galleryPageContent\">" + generateGalleryPage(galleryImages) + "</div>");
 
-	var imageLink = "<div style=\"float: right\"><a href=\"javascript:viewFullSizeImages();\">View these " + galleryImages.length + " pics Full Size</a></div>";
+		var imageLink = "<div style=\"float: right\"><a href=\"javascript:viewFullSizeImages();\">View these " + galleryImages.length + " pics Full Size</a></div>";
 
-	if ($("#tblGallery").length > 0) {
-		// viewprofile.asp (Gallery tab)
-		if ($("#tblGallery tbody tr:first td:first").html().indexOf("Showing most recent pictures") >= 0) {
-			// If multiple pages, add our link to existing first row (which contains link to view all)
-			$("#tblGallery tbody tr:first td:first").append(imageLink);
+		if ($("#tblGallery").length > 0) {
+			// viewprofile.asp (Gallery tab)
+			if ($("#tblGallery tbody tr:first td:first").html().indexOf("Showing most recent pictures") >= 0) {
+				// If multiple pages, add our link to existing first row (which contains link to view all)
+				$("#tblGallery tbody tr:first td:first").append(imageLink);
+			} else {
+				// If just the one page, add a new first row ontaining our link
+				$("#tblGallery tbody tr:first td:first").before('<tr><td colspan="5">'+imageLink+'</td></tr>');
+			}
 		} else {
-			// If just the one page, add a new first row ontaining our link
-			$("#tblGallery tbody tr:first td:first").before('<tr><td colspan="5">'+imageLink+'</td></tr>'); 
+			// gallery.asp - when showing the full gallery
+			$("table[cellspacing=20] tbody tr:first td:first").before('<tr><td colspan="5">'+imageLink+'</td></tr>');
 		}
-	} else {
-		// gallery.asp - when showing the full gallery
-		$("table[cellspacing=20] tbody tr:first td:first").before('<tr><td colspan="5">'+imageLink+'</td></tr>'); 
-	}	
 
+	}
 }
 
-// LINK TO UKP REVIEWS (if userId URL variable is present)
-
-var matches = document.URL.match (patterns.userId);
-if (matches !== null) {
-	var userId  = document.URL.match (patterns.userId) [1];
+function addSettingsLink() {
+	$('body').append(settingsFormHtml);
+	$('#awiSettingsLink').append('[Settings]');
+	$(document).on("click", '#awiSettingsLink', function () {
+		$("#awiSettingsFieldDuration").val(config.preferredDuration);
+		$('#awiSettingsForm').show();
+		$('#awiPageMask').show();
+	});
+	$(document).on('click', '#awiSettingsSaveButton', function () {
+		config.preferredDuration = $('#awiSettingsFieldDuration').val();
+		saveConfig();
+		populateInfoBar();
+		$('#awiSettingsForm').hide();
+		$('#awiPageMask').hide();
+	});
+	$(document).on('click', '#awiSettingsCancelButton', function () {
+		$('#awiSettingsForm').hide();
+		$('#awiPageMask').hide();
+	});
 }
 
-if(isInt(userId)) {
+function addUKPLinkToList() {
+	document.body.innerHTML = document.body.innerHTML.replace( /&nbsp;\(<a href="javascript:void\(0\)" onclick="viewRating\((\d+)\)/g ,"&nbsp;<a target=\"_blank\" href=\"//www.google.com/webhp?#q=inurl%3A%22ukpunting.com%2Findex.php%3Faction%3Dserviceprovider%22+$1\">UKP</a>&nbsp;(<a href=\"javascript:void(0)\" onclick=\"viewRating($1)");
+}
 
+function addUKPLinkToProfile(userId) {
 	// First add the UKP link via Google (as per the original script) in case the API doesn't work for some reason
 	var target = "<a href=\"javascript:void(0)\" onclick=\"viewRating";
 	var replacement1 = "<a target=\"_blank\" href=\"//www.google.com/webhp?#q=inurl%3A%22ukpunting.com%2Findex.php%3Faction%3Dserviceprovider%22+"+userId+"\">UKP</a>&nbsp;&nbsp;&nbsp;"+target;
@@ -147,45 +272,27 @@ if(isInt(userId)) {
 				reviews += "<span style=\"color:" + neuColour + "\">" + ukpData.neutral_count + "</span>" + reviewSeparator;
 				reviews += "<span style=\"color:" + negColour + "\">" + ukpData.negative_count + "</span>";
 				reviews += ")";
-				var replacement2 = "<span title=\"" + reviewTooltip + "\">"; 
+				var replacement2 = "<span title=\"" + reviewTooltip + "\">";
 				replacement2 += "<a target=\"_blank\" href=\"https://www.ukpunting.com/index.php?action=serviceprovider;id="+ukpData.service_provider_id+"\">UKP</a>";
 				replacement2 += "&nbsp;"+reviews+"</span>&nbsp;&nbsp;&nbsp;"+target;
 				document.body.innerHTML = document.body.innerHTML.replace(replacement1,replacement2);
 			}
 		}
 	});
+}
 
+function populateInfoBar() {
 
-	// ALL ORIGINAL BELOW HERE ----------
+	var town = '', county = '', postcode = '', chest = '', rate = '£???';
+	var spacedSeparator = ' ' + separator + ' ';
 
-	var age = "", county = "", nationality = "", town = "", chest = "", rate = "£???", checkinterview;
-	if(document.getElementById('tdRI' + preferredDuration) !== null && document.getElementById('tdRI' + preferredDuration).innerHTML !== "&nbsp;") {
-		rate = "£" + document.getElementById("tdRI" + preferredDuration).innerHTML;
-	} else if(document.getElementById('tdRO' + preferredDuration) !== null && document.getElementById('tdRO' + preferredDuration).innerHTML !== "&nbsp;") {
-		rate = "Outcall £" + document.getElementById("tdRO" + preferredDuration).innerHTML;
-	}
+	// Age
+	var info = profile.Age;
 
-	var myRegexp = /<td class="Label" align="right">([A-Za-z ]+):<\/td>\n *<td[^>]*>([^<]+)/g;
-	var match;
+	// Dress Size
+	if('Dress_Size' in interview) info += spacedSeparator + "Size " + interview.Dress_Size;
 
-	do {
-		match = myRegexp.exec(document.getElementById("tblProfile").innerHTML);
-		if(match === null) continue;
-		if(match[1] == "Age") {
-			age = match[2];
-		} else if(match[1] == "County"){
-			county = match[2];
-		} else if(match[1] == "Town"){
-			town = match[2];
-		} else if(match[1] == "Nationality"){
-			nationality = match[2];
-		}
-	} while(match !== null);
-
-	var interview = {};
-	if(document.getElementById("tblInterview")){
-		interview = extractTableData(patterns.tblInterviewRow, document.getElementById("tblInterview").innerHTML);
-	}
+	// Bust Size
 	myRegexp = /Chest Size:<\/td> <td class="Padded">([^<]+)<\/td>/g;
 
 	match = myRegexp.exec(document.getElementById("tblProfile").innerHTML);
@@ -233,37 +340,101 @@ if(isInt(userId)) {
 			chest = (elements[2] == "Natural" ? "Real":(elements[2] == "Enhanced" ? "Fake":"")) + " " + elements[0].substring(0, elements[0].length - 1) + elements[1] + "s";
 		}
 	}
-	var navbar, newElement;
-	navbar = document.getElementsByClassName('PageHeading');
-	if (navbar[0]) {
-		newElement = document.createElement('p');
-		var str2 = age;
-		if('Dress_Size' in interview) {
-			str2 += " " + separator + " Size " + interview.Dress_Size;
-		}
-		if(chest.length) {
-			str2 += " " + separator + " " +chest;
-		}
-		if(nationality.length) {
-			str2 += " " + separator + " " +nationality;
-		}
-		str2 += " " + separator + " " + rate;
-		if(!town && county) town = county;
-		if(town.length) {
-			str2 += " " + separator + " " +(town.length>17?town.substring(0,14)+"...":town);
-		}
-		var t = document.createTextNode(str2);
-		newElement.appendChild(t);
-		navbar[0].parentNode.insertBefore(newElement, navbar[0].nextSibling);
 
-		if(document.getElementById("dPref").innerHTML.indexOf("<td class=\"Padded\" nowrap=\"\">Bareback</td>") > -1 || document.getElementById("dPref").innerHTML.indexOf("<td class=\"Padded\" nowrap=\"\">Unprotected Sex</td>") > -1) {
-			newElement2 = document.createElement('p');
-			var t2 = document.createTextNode("Caution: Enjoys bareback");
-			newElement2.appendChild(t2);
-			navbar[0].parentNode.insertBefore(newElement2, navbar[0].nextSibling);
-		}
+	if(chest.length) {
+		info += spacedSeparator + chest;
 	}
 
-} else {
-	document.body.innerHTML = document.body.innerHTML.replace( /&nbsp;\(<a href="javascript:void\(0\)" onclick="viewRating\((\d+)\)/g ,"&nbsp;<a target=\"_blank\" href=\"//www.google.com/webhp?#q=inurl%3A%22ukpunting.com%2Findex.php%3Faction%3Dserviceprovider%22+$1\">UKP</a>&nbsp;(<a href=\"javascript:void(0)\" onclick=\"viewRating($1)");
+	// Nationality
+	if ('Nationality' in profile) info += spacedSeparator + profile.Nationality;
+
+	// Rate for preferred duration
+	var d = config.preferredDuration;
+	if(document.getElementById('tdRI' + d) !== null && document.getElementById('tdRI' + d).innerHTML !== "&nbsp;") {
+		rate = "£" + document.getElementById("tdRI" + d).innerHTML;
+	} else if(document.getElementById('tdRO' + d) !== null && document.getElementById('tdRO' + d).innerHTML !== "&nbsp;") {
+		rate = "Outcall £" + document.getElementById("tdRO" + d).innerHTML;
+	}
+	if(d in durations) rate += "/" + durations[d];
+	info += spacedSeparator + rate;
+
+	// Location
+	// Need to reset lastIndex or it will fail eey other time,
+	// see http://stackoverflow.com/questions/3891641/regex-test-only-works-every-other-time
+	patterns.postcode.lastIndex = 0;
+	var tempMatch = patterns.postcode.exec($('head').html());
+	if (tempMatch !== null) {
+		postcode = tempMatch[1].toUpperCase();
+	}
+
+	if ('Town' in profile) town = profile.Town;
+	if ('County' in profile) county = profile.County;
+	if (!town && county) town = county;
+	if (town.length || postcode.length) {
+		info += spacedSeparator;
+		if (postcode.length) info += postcode;
+		if (town.length && postcode.length) info += ', ';
+		if (town.length) info += (town.length > 17 ? town.substring(0,14) + "..." : town);
+	}
+
+	$("#awiInfoBar").html(info);
+
 }
+
+function addContainers() {
+	$('.PageHeading').after('<div id="awiInfoBarContainer"></div>');
+	$('#awiInfoBarContainer').append('<span id="awiInfoBar"></span>');
+	$('#awiInfoBarContainer').append('<span id="awiSettingsLink"></span>');
+}
+
+function getUserId() {
+	var userId = 0;
+	var matches = document.URL.match(patterns.userId);
+	if (matches !== null && isInt(matches[1])) {
+		userId  = matches[1];
+	}
+	return userId;
+}
+
+function checkForBareback() {
+	if(preferences.indexOf('Bareback') > -1 || preferences.indexOf('Unprotected Sex') > -1) {
+		$('.PageHeading').after('<div class="awiWarning">Caution: Enjoys bareback</div>');
+	}
+}
+
+function fixAntiSocialBehaviour() {
+	// Make text selectable again.  No need to worry about the "unselectable" attribute as it only applies in IE and Opera
+	// Most of the action here is applied through the .unSelectable class and the onselectstart event listener, so remove them.
+	// Seems to fix right click on images as a bonus!
+	$('.unSelectable')
+		.removeClass("unSelectable")
+		.removeAttr('onselectstart');
+}
+
+$(document).ready(function () {
+	fixAntiSocialBehaviour();
+	addFullSizeImageLink();
+	var userId = getUserId();
+	if (userId !== 0) {
+		addUKPLinkToProfile(userId);
+		if (location.pathname.toLowerCase() == '/viewprofile.asp') {
+			if ($("#tblInterview")) {
+				interview = extractHtmlTableDataToObject(patterns.interviewRow, "#tblInterview");
+			}
+			if ($("#dPref")) {
+				preferences = extractHtmlTableDataToArray(patterns.preferencesRow, "#dPref");
+			}
+			if ($("#tblProfile")) {
+				profile = extractHtmlTableDataToObject(patterns.profileRow, "#tblProfile");
+			}
+			loadConfig();
+			addCss();
+			addContainers();
+			populateInfoBar();
+			addSettingsLink();
+			checkForBareback();
+		}
+	} else {
+		addUKPLinkToList();
+	}
+});
