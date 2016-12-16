@@ -4,7 +4,7 @@
 // @description	Add UKP review link and counts to AW and moves some stats to the top of the page
 // @include		https://www.adultwork.com/*
 // @include		http://www.adultwork.com/*
-// @version		1.3
+// @version		1.3.1
 // @grant		GM_getValue
 // @grant		GM_setValue
 // @grant		GM_xmlhttpRequest
@@ -434,7 +434,5 @@ $(document).ready(function () {
 			addSettingsLink();
 			checkForBareback();
 		}
-	} else {
-		addUKPLinkToList();
 	}
 });
