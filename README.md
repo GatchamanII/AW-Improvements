@@ -13,4 +13,4 @@ Chrome (Tampermonkey) / Firefox (Greasemonkey) Userscript to improve the experie
 * Add link to Free Gallery allowing all images to be opened full size in a new window
 * Reinstate the ability to select text
 * Reinstate normal right-click functions
-* Show a prominent warning if Bareback or "Unprotected Sex" are present in Enjoys list
+* Show a prominent warning if "Bareback" or "Unprotected Sex" are present in Enjoys list
