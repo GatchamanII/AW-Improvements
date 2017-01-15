@@ -12,5 +12,5 @@ Chrome (Tampermonkey) / Firefox (Greasemonkey) Userscript to improve the experie
 * Add link to list of reviews on UK Punting (UKP) and show count of Positive, Neutral and Negative reviews
 * Add link to Free Gallery allowing all images to be opened full size in a new window
 * Reinstate the ability to select text
-* Reinstate normal right-click functions
+* ~~Reinstate normal right-click functions~~ - Not currently working
 * Show a prominent warning if "Bareback" or "Unprotected Sex" are present in Enjoys list
