@@ -40,7 +40,8 @@ const patterns = {
 	preferencesRow : /<td class="Padded" nowrap="">([^<]+)<\/td>/g,
 	profileRow : /<td class="Label" align="right">([A-Za-z ]+):<\/td>\n *<td[^>]*>([^<]+)/g,
 	postcode : /https?:\/\/www\.adultwork\.com\/Loaders\/GT\.asp\?Town=[^&]+&Country=[^&]+&PostCode=([^']+)',/g,
-	profileLink : /Link to this Profile Page using (https?:\/\/www\.adultwork\.com\/[0-9]+  or <span itemprop="url">https?:\/\/www\.adultwork\.com\/[^<]+)/g
+	profileLink : /Link to this Profile Page using (https?:\/\/www\.adultwork\.com\/[0-9]+  or <span itemprop="url">https?:\/\/www\.adultwork\.com\/[^<]+)/g,
+	telephone : /<td><b itemprop="telephone">(.+)<\/b><\/td>/g
 };
 
 // Some formatting options
@@ -110,7 +111,27 @@ const cssCode = `<style type="text/css">
 	padding: 15px 0 15px 0;
 	font-weight: bold;
 }
+
+.hilite {
+	border:1px solid red;
+	background: #dd0000;
+}
 </style>`;
+
+const lastKnownTelRow = `<tr id="awiLastKnownTel">
+	<td align="center" class="Padded"><img border="0" src="images/1px.gif" width="1" height="5"><br><b>Last known telephone number</b>:<br><img border="0" src="images/1px.gif" width="1" height="5"></td>
+	<td align="center"><img border="0" src="images/1px.gif" width="20" height="1"></td>
+	<td>
+	<table border="0" cellpadding="0" cellspacing="5">
+		<tr>
+		<td><b itemprop="telephone">%TEL%</b></td>
+		<td><a href="javascript:void(0)" onClick="openQRCodeWin('TEL:%TEL%')" title="Click here to see a QR Code image that you can scan with your phone, that contains this number.">Get QR</a></td>
+		</tr>
+		<tr>
+		<td colspan="2"><i>(this SP is not currently displaying a telephone number.<br>The number shown here is the last known number <b>courtesy of UKP</b>)</i></td>
+		</tr>
+	</table></td>
+</tr>`;
 
 function addCss() {
 	$('head').append(cssCode);
@@ -276,6 +297,26 @@ function addUKPLinkToProfile(userId) {
 				replacement2 += "<a target=\"_blank\" href=\"https://www.ukpunting.com/index.php?action=serviceprovider;id="+ukpData.service_provider_id+"\">UKP</a>";
 				replacement2 += "&nbsp;"+reviews+"</span>&nbsp;&nbsp;&nbsp;"+target;
 				document.body.innerHTML = document.body.innerHTML.replace(replacement1,replacement2);
+			}
+			if (ukpData.tel_no !== ''){
+				// var telephone;
+				// Need to reset lastIndex or it will fail every other time,
+				// see http://stackoverflow.com/questions/3891641/regex-test-only-works-every-other-time
+				patterns.telephone.lastIndex = 0;
+				var tempMatch = patterns.telephone.exec($('body').html());
+				if (tempMatch === null) {
+					var contactTable = $('a.label[name="Contact"]').closest('table');
+					contactTable.attr('id','awiContactTable');
+					var lastRowType = 0;
+					var lastRow = $('#awiContactTable > tbody > tr:last');
+					if (lastRow.hasClass('AltRow')) {
+						lastRowType = 1;
+					}
+					contactTable.append(lastKnownTelRow.replace(/%TEL%/g, ukpData.tel_no));
+					if (lastRowType === 0) {
+						$('#awiLastKnownTel').addClass("AltRow");
+					}
+				}
 			}
 		}
 	});
