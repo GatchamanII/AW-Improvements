@@ -4,7 +4,7 @@
 // @description	Add UKP review link and counts to AW and moves some stats to the top of the page
 // @include		https://www.adultwork.com/*
 // @include		http://www.adultwork.com/*
-// @version		1.5.0
+// @version		1.4.1
 // @grant		GM_getValue
 // @grant		GM_setValue
 // @grant		GM_xmlhttpRequest
@@ -450,8 +450,6 @@ function fixAntiSocialBehaviour() {
 	$('.unSelectable')
 		.removeClass("unSelectable")
 		.removeAttr('onselectstart');
-	// Can't get the below to work with jQuery, so use the same loop as AW use to add the oncontextmenu listener
-	for(i=0;i<document.images.length;i++) {document.images[i].oncontextmenu = null;}
 }
 
 $(document).ready(function () {
