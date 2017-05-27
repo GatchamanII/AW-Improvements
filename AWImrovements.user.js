@@ -4,7 +4,7 @@
 // @description	Add UKP review link and counts to AW and moves some stats to the top of the page
 // @include		https://www.adultwork.com/*
 // @include		http://www.adultwork.com/*
-// @version		1.4.0
+// @version		1.5.0
 // @grant		GM_getValue
 // @grant		GM_setValue
 // @grant		GM_xmlhttpRequest
@@ -446,10 +446,11 @@ function checkForBareback() {
 function fixAntiSocialBehaviour() {
 	// Make text selectable again.  No need to worry about the "unselectable" attribute as it only applies in IE and Opera
 	// Most of the action here is applied through the .unSelectable class and the onselectstart event listener, so remove them.
-	// Seems to fix right click on images as a bonus!
 	$('.unSelectable')
 		.removeClass("unSelectable")
 		.removeAttr('onselectstart');
+	// Can't get the below to work with jQuery
+	for(i=0;i<document.images.length;i++) {document.images[i].oncontextmenu = null;}		
 }
 
 $(document).ready(function () {
