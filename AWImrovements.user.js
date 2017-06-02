@@ -4,7 +4,7 @@
 // @description	Add UKP review link and counts to AW and moves some stats to the top of the page
 // @include		https://www.adultwork.com/*
 // @include		http://www.adultwork.com/*
-// @version		1.6.0
+// @version		1.6.1
 // @grant		GM_getValue
 // @grant		GM_setValue
 // @grant		GM_xmlhttpRequest
@@ -329,7 +329,7 @@ function addUKPLinkToProfile(userId) {
 
 function populateInfoBar() {
 
-	var town = '', county = '', postcode = '', chest = '', rate = '£???';
+	var town = '', county = '', postcode = '', chest = '', rate = '&pound;???';
 	var spacedSeparator = ' ' + separator + ' ';
 
 	// Age
@@ -397,9 +397,9 @@ function populateInfoBar() {
 	// Rate for preferred duration
 	var d = config.preferredDuration;
 	if(document.getElementById('tdRI' + d) !== null && document.getElementById('tdRI' + d).innerHTML !== "&nbsp;") {
-		rate = "£" + document.getElementById("tdRI" + d).innerHTML;
+		rate = "&pound;" + document.getElementById("tdRI" + d).innerHTML;
 	} else if(document.getElementById('tdRO' + d) !== null && document.getElementById('tdRO' + d).innerHTML !== "&nbsp;") {
-		rate = "Outcall £" + document.getElementById("tdRO" + d).innerHTML;
+		rate = "Outcall &pound;" + document.getElementById("tdRO" + d).innerHTML;
 	}
 	if(d in durations) rate += "/" + durations[d];
 	info += spacedSeparator + rate;
