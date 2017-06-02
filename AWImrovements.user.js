@@ -4,7 +4,7 @@
 // @description	Add UKP review link and counts to AW and moves some stats to the top of the page
 // @include		https://www.adultwork.com/*
 // @include		http://www.adultwork.com/*
-// @version		1.5.0
+// @version		1.6.0
 // @grant		GM_getValue
 // @grant		GM_setValue
 // @grant		GM_xmlhttpRequest
@@ -41,7 +41,8 @@ const patterns = {
 	profileRow : /<td class="Label" align="right">([A-Za-z ]+):<\/td>\n *<td[^>]*>([^<]+)/g,
 	postcode : /https?:\/\/www\.adultwork\.com\/Loaders\/GT\.asp\?Town=[^&]+&Country=[^&]+&PostCode=([^']+)',/g,
 	profileLink : /Link to this Profile Page using (https?:\/\/www\.adultwork\.com\/[0-9]+  or <span itemprop="url">https?:\/\/www\.adultwork\.com\/[^<]+)/g,
-	telephone : /<td><b itemprop="telephone">(.+)<\/b><\/td>/g
+	telephone : /<td><b itemprop="telephone">(.+)<\/b><\/td>/g,
+	accessingFrom : /<tr>\s*<td class="Label" align="right"><span class="HelpLink" title="The IP address from which this member is accessing the Internet is registered to a different Country than which they puport to be in\.">Accessing From<\/span>:<br><img border="0" src="images\/1px\.gif" width="1" height="1"><\/td>\s*<td>([^<]+)<\/td>\s*<\/tr>/g
 };
 
 // Some formatting options
@@ -74,6 +75,10 @@ const settingsFormHtml = `<form id="awiSettingsForm">
 <div id="awiPageMask"></div>`;
 
 const cssCode = `<style type="text/css">
+#awiInfoBarContainer {
+	padding: 10px 0 0 0;
+}
+
 #awiSettingsForm {
 	position: absolute;
 	width: 200px;
@@ -108,7 +113,7 @@ const cssCode = `<style type="text/css">
 }
 
 .awiWarning {
-	padding: 15px 0 15px 0;
+	padding: 0 0 15px 0;
 	font-weight: bold;
 }
 
@@ -324,7 +329,7 @@ function addUKPLinkToProfile(userId) {
 
 function populateInfoBar() {
 
-	var town = '', county = '', postcode = '', chest = '', rate = 'Â£???';
+	var town = '', county = '', postcode = '', chest = '', rate = '£???';
 	var spacedSeparator = ' ' + separator + ' ';
 
 	// Age
@@ -392,9 +397,9 @@ function populateInfoBar() {
 	// Rate for preferred duration
 	var d = config.preferredDuration;
 	if(document.getElementById('tdRI' + d) !== null && document.getElementById('tdRI' + d).innerHTML !== "&nbsp;") {
-		rate = "Â£" + document.getElementById("tdRI" + d).innerHTML;
+		rate = "£" + document.getElementById("tdRI" + d).innerHTML;
 	} else if(document.getElementById('tdRO' + d) !== null && document.getElementById('tdRO' + d).innerHTML !== "&nbsp;") {
-		rate = "Outcall Â£" + document.getElementById("tdRO" + d).innerHTML;
+		rate = "Outcall £" + document.getElementById("tdRO" + d).innerHTML;
 	}
 	if(d in durations) rate += "/" + durations[d];
 	info += spacedSeparator + rate;
@@ -439,7 +444,17 @@ function getUserId() {
 
 function checkForBareback() {
 	if(preferences.indexOf('Bareback') > -1 || preferences.indexOf('Unprotected Sex') > -1) {
-		$('.PageHeading').after('<div class="awiWarning">Caution: Enjoys bareback</div>');
+		$('#awiInfoBarContainer').prepend('<div class="awiWarning">Caution: Enjoys bareback</div>');
+	}
+}
+
+function checkAccessingFrom() {
+	// Need to reset lastIndex or it will fail every other time,
+	// see http://stackoverflow.com/questions/3891641/regex-test-only-works-every-other-time
+	patterns.accessingFrom.lastIndex = 0;
+	var tempMatch = patterns.accessingFrom.exec($('body').html());
+	if (tempMatch !== null) {
+		$('#awiInfoBarContainer').prepend('<div class="awiWarning">Accessing from ' + tempMatch[1] + '</div>');
 	}
 }
 
@@ -475,6 +490,7 @@ $(document).ready(function () {
 			populateInfoBar();
 			addSettingsLink();
 			checkForBareback();
+	checkAccessingFrom();
 		}
 	}
 });
