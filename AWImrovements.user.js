@@ -4,7 +4,7 @@
 // @description	Add UKP review link and counts to AW and moves some stats to the top of the page
 // @include		https://www.adultwork.com/*
 // @include		http://www.adultwork.com/*
-// @version		1.6.1
+// @version		1.7.0
 // @grant		GM_getValue
 // @grant		GM_setValue
 // @grant		GM_xmlhttpRequest
@@ -14,7 +14,8 @@
 
 // GLOBAL VARIABLES =================================================
 var config = {
-	preferredDuration: 1
+	preferredDuration: 1,
+    colour: "#0000FF"
 };
 
 var interview = {}, preferences = [], profile = {};
@@ -51,7 +52,7 @@ const separator = "\u00B7"; // middot
 
 // HTML/CSS for injection
 const settingsFormHtml = `<form id="awiSettingsForm">
-	<h3>AW Improvements Settings</h3>
+	<h3>AW Improvements (v%VER%) Settings</h3>
 	<table>
 		<tr>
 			<td>Duration:</td>
@@ -68,6 +69,10 @@ const settingsFormHtml = `<form id="awiSettingsForm">
 				</select>
 			</td>
 		</tr>
+		<tr>
+			<td>Colour:</td>
+			<td><input id="awiSettingsFieldColour" type="color"></td>
+		</tr>
 	</table><br><br>
 	<button type="button" id="awiSettingsSaveButton">Save</button>
 	<button type="button" id="awiSettingsCancelButton">Cancel</button>
@@ -81,11 +86,11 @@ const cssCode = `<style type="text/css">
 
 #awiSettingsForm {
 	position: absolute;
-	width: 200px;
-	height: 150px;
+	width: 320px;
+	height: 175px;
 	left: 50%;
 	top: 50%;
-	margin-left: -100px;
+	margin-left: -160px;
 	margin-top: -75px;
 	border: 1px solid black;
 	padding: 12px 16px;
@@ -117,6 +122,10 @@ const cssCode = `<style type="text/css">
 	font-weight: bold;
 }
 
+.awi {
+	color: %COLOUR% !important;
+}
+
 .hilite {
 	border:1px solid red;
 	background: #dd0000;
@@ -124,22 +133,22 @@ const cssCode = `<style type="text/css">
 </style>`;
 
 const lastKnownTelRow = `<tr id="awiLastKnownTel">
-	<td align="center" class="Padded"><img border="0" src="images/1px.gif" width="1" height="5"><br><b>Last known telephone number</b>:<br><img border="0" src="images/1px.gif" width="1" height="5"></td>
+	<td align="center" class="Padded"><img border="0" src="images/1px.gif" width="1" height="5"><br><b class="awi">Last known telephone number</b>:<br><img border="0" src="images/1px.gif" width="1" height="5"></td>
 	<td align="center"><img border="0" src="images/1px.gif" width="20" height="1"></td>
 	<td>
 	<table border="0" cellpadding="0" cellspacing="5">
 		<tr>
-		<td><b itemprop="telephone">%TEL%</b></td>
-		<td><a href="javascript:void(0)" onClick="openQRCodeWin('TEL:%TEL%')" title="Click here to see a QR Code image that you can scan with your phone, that contains this number.">Get QR</a></td>
+		<td><b itemprop="telephone" class="awi">%TEL%</b></td>
+		<td><a href="javascript:void(0)" onClick="openQRCodeWin('TEL:%TEL%')" title="Click here to see a QR Code image that you can scan with your phone, that contains this number." class="awi">Get QR</a></td>
 		</tr>
 		<tr>
-		<td colspan="2"><i>(this SP is not currently displaying a telephone number.<br>The number shown here is the last known number <b>courtesy of UKP</b>)</i></td>
+		<td colspan="2"><i class="awi">(this SP is not currently displaying a telephone number.<br>The number shown here is the last known number <b>courtesy of UKP</b>)</i></td>
 		</tr>
 	</table></td>
 </tr>`;
 
 function addCss() {
-	$('head').append(cssCode);
+	$('head').append(cssCode.replace(/%COLOUR%/g, config.colour));
 }
 
 function loadConfig() {
@@ -233,7 +242,7 @@ function addFullSizeImageLink() {
 		inject(viewFullSizeImages);
 		$("body").append("<div style=\"display:none;\" id=\"galleryPageContent\">" + generateGalleryPage(galleryImages) + "</div>");
 
-		var imageLink = "<div style=\"float: right\"><a href=\"javascript:viewFullSizeImages();\">View these " + galleryImages.length + " pics Full Size</a></div>";
+		var imageLink = "<div style=\"float: right\"><a href=\"javascript:viewFullSizeImages();\" class=\"awi\">View these " + galleryImages.length + " pics Full Size</a></div>";
 
 		if ($("#tblGallery").length > 0) {
 			// viewprofile.asp (Gallery tab)
@@ -253,19 +262,23 @@ function addFullSizeImageLink() {
 }
 
 function addSettingsLink() {
-	$('body').append(settingsFormHtml);
+	$('body').append(settingsFormHtml.replace(/%VER%/g, GM_info.script.version));
 	$('#awiSettingsLink').append('[Settings]');
 	$(document).on("click", '#awiSettingsLink', function () {
 		$("#awiSettingsFieldDuration").val(config.preferredDuration);
+		$("#awiSettingsFieldColour").val(config.colour);
 		$('#awiSettingsForm').show();
 		$('#awiPageMask').show();
 	});
 	$(document).on('click', '#awiSettingsSaveButton', function () {
 		config.preferredDuration = $('#awiSettingsFieldDuration').val();
+		config.colour = $('#awiSettingsFieldColour').val();
 		saveConfig();
 		populateInfoBar();
 		$('#awiSettingsForm').hide();
 		$('#awiPageMask').hide();
+		// Add a new CSS declaration for this class (will override the previous one)
+		$('head').append('<style>.awi { color: ' + config.colour + ' !important }</style>');
 	});
 	$(document).on('click', '#awiSettingsCancelButton', function () {
 		$('#awiSettingsForm').hide();
@@ -274,13 +287,13 @@ function addSettingsLink() {
 }
 
 function addUKPLinkToList() {
-	document.body.innerHTML = document.body.innerHTML.replace( /&nbsp;\(<a href="javascript:void\(0\)" onclick="viewRating\((\d+)\)/g ,"&nbsp;<a target=\"_blank\" href=\"//www.google.com/webhp?#q=inurl%3A%22ukpunting.com%2Findex.php%3Faction%3Dserviceprovider%22+$1\">UKP</a>&nbsp;(<a href=\"javascript:void(0)\" onclick=\"viewRating($1)");
+	document.body.innerHTML = document.body.innerHTML.replace( /&nbsp;\(<a href="javascript:void\(0\)" onclick="viewRating\((\d+)\)/g ,"&nbsp;<a target=\"_blank\" href=\"//www.google.com/webhp?#q=inurl%3A%22ukpunting.com%2Findex.php%3Faction%3Dserviceprovider%22+$1\" class=\"awi\">UKP</a>&nbsp;(<a href=\"javascript:void(0)\" onclick=\"viewRating($1)");
 }
 
 function addUKPLinkToProfile(userId) {
 	// First add the UKP link via Google (as per the original script) in case the API doesn't work for some reason
 	var target = "<a href=\"javascript:void(0)\" onclick=\"viewRating";
-	var replacement1 = "<a target=\"_blank\" href=\"//www.google.com/webhp?#q=inurl%3A%22ukpunting.com%2Findex.php%3Faction%3Dserviceprovider%22+"+userId+"\">UKP</a>&nbsp;&nbsp;&nbsp;"+target;
+	var replacement1 = "<a target=\"_blank\" href=\"//www.google.com/webhp?#q=inurl%3A%22ukpunting.com%2Findex.php%3Faction%3Dserviceprovider%22+"+userId+"\" class=\"awi\">UKP</a>&nbsp;&nbsp;&nbsp;"+target;
 	document.body.innerHTML = document.body.innerHTML.replace(target,replacement1);
 
 	// Second, call the API, and if OK replace the Google search links with links direct to UKP and add review counts
@@ -299,7 +312,7 @@ function addUKPLinkToProfile(userId) {
 				reviews += "<span style=\"color:" + negColour + "\">" + ukpData.negative_count + "</span>";
 				reviews += ")";
 				var replacement2 = "<span title=\"" + reviewTooltip + "\">";
-				replacement2 += "<a target=\"_blank\" href=\"https://www.ukpunting.com/index.php?action=serviceprovider;id="+ukpData.service_provider_id+"\">UKP</a>";
+				replacement2 += "<a target=\"_blank\" href=\"https://www.ukpunting.com/index.php?action=serviceprovider;id="+ukpData.service_provider_id+"\" class=\"awi\">UKP</a>";
 				replacement2 += "&nbsp;"+reviews+"</span>&nbsp;&nbsp;&nbsp;"+target;
 				document.body.innerHTML = document.body.innerHTML.replace(replacement1,replacement2);
 			}
@@ -428,7 +441,7 @@ function populateInfoBar() {
 }
 
 function addContainers() {
-	$('.PageHeading').after('<div id="awiInfoBarContainer"></div>');
+	$('.PageHeading').after('<div id="awiInfoBarContainer" class="awi"></div>');
 	$('#awiInfoBarContainer').append('<span id="awiInfoBar"></span>');
 	$('#awiInfoBarContainer').append('<span id="awiSettingsLink"></span>');
 }
@@ -490,7 +503,7 @@ $(document).ready(function () {
 			populateInfoBar();
 			addSettingsLink();
 			checkForBareback();
-	checkAccessingFrom();
+			checkAccessingFrom();
 		}
 	}
 });

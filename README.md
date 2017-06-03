@@ -16,3 +16,5 @@ Chrome (Tampermonkey) / Firefox (Greasemonkey) Userscript to improve the experie
 * Reinstate the ability to select text
 * Reinstate normal right-click functions (save image etc)
 * If no phone number displayed on profile, show last known number from UKP API
+
+All text inserted into the page by this script is coloured (blue by default) so it can be readily identified.  This colour can be changed in the settings if desired.
