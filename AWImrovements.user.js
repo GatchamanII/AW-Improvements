@@ -4,7 +4,7 @@
 // @description	Add UKP review link and counts to AW and moves some stats to the top of the page
 // @include		https://www.adultwork.com/*
 // @include		http://www.adultwork.com/*
-// @version		1.7.0
+// @version		1.8.0
 // @grant		GM_getValue
 // @grant		GM_setValue
 // @grant		GM_xmlhttpRequest
@@ -15,10 +15,11 @@
 // GLOBAL VARIABLES =================================================
 var config = {
 	preferredDuration: 1,
-    colour: "#0000FF"
+	colour: "#0000FF",
+	lastLoginWarningDays: 2
 };
 
-var interview = {}, preferences = [], profile = {};
+var interview = {}, preferences = [], profile = {}, warnings= [];
 
 // CONSTANTS ========================================================
 const durations = {
@@ -43,7 +44,9 @@ const patterns = {
 	postcode : /https?:\/\/www\.adultwork\.com\/Loaders\/GT\.asp\?Town=[^&]+&Country=[^&]+&PostCode=([^']+)',/g,
 	profileLink : /Link to this Profile Page using (https?:\/\/www\.adultwork\.com\/[0-9]+  or <span itemprop="url">https?:\/\/www\.adultwork\.com\/[^<]+)/g,
 	telephone : /<td><b itemprop="telephone">(.+)<\/b><\/td>/g,
-	accessingFrom : /<tr>\s*<td class="Label" align="right"><span class="HelpLink" title="The IP address from which this member is accessing the Internet is registered to a different Country than which they puport to be in\.">Accessing From<\/span>:<br><img border="0" src="images\/1px\.gif" width="1" height="1"><\/td>\s*<td>([^<]+)<\/td>\s*<\/tr>/g
+	accessingFrom : /<tr>\s*<td class="Label" align="right"><span class="HelpLink" title="The IP address from which this member is accessing the Internet is registered to a different Country than which they puport to be in\.">Accessing From<\/span>:<br><img border="0" src="images\/1px\.gif" width="1" height="1"><\/td>\s*<td>([^<]+)<\/td>\s*<\/tr>/g,
+	lastLogin : /<tr>\s*<td class="Label" align="right">Last Login:<\/td>\s*<td>([0-3][0-9]\/[0-1][0-9]\/20[0-9][0-9]|Yesterday|Today)<\/td>\s*<\/tr>/g,
+    date : /([0-3][0-9])\/([0-1][0-9])\/(20[0-9][0-9])/g
 };
 
 // Some formatting options
@@ -72,6 +75,10 @@ const settingsFormHtml = `<form id="awiSettingsForm">
 		<tr>
 			<td>Colour:</td>
 			<td><input id="awiSettingsFieldColour" type="color"></td>
+		</tr>
+		<tr>
+			<td>Warn if last login more than</td>
+			<td><input id="awiSettingsFieldLastLoginDays" type="text" size="3"> days ago</td>
 		</tr>
 	</table><br><br>
 	<button type="button" id="awiSettingsSaveButton">Save</button>
@@ -117,9 +124,9 @@ const cssCode = `<style type="text/css">
 	cursor: hand;
 }
 
-.awiWarning {
+#awiWarning {
 	padding: 0 0 15px 0;
-	font-weight: bold;
+	display: none;
 }
 
 .awi {
@@ -267,14 +274,17 @@ function addSettingsLink() {
 	$(document).on("click", '#awiSettingsLink', function () {
 		$("#awiSettingsFieldDuration").val(config.preferredDuration);
 		$("#awiSettingsFieldColour").val(config.colour);
+		$("#awiSettingsFieldLastLoginDays").val(config.lastLoginWarningDays);
 		$('#awiSettingsForm').show();
 		$('#awiPageMask').show();
 	});
 	$(document).on('click', '#awiSettingsSaveButton', function () {
 		config.preferredDuration = $('#awiSettingsFieldDuration').val();
 		config.colour = $('#awiSettingsFieldColour').val();
+		config.lastLoginWarningDays = $('#awiSettingsFieldLastLoginDays').val();
 		saveConfig();
 		populateInfoBar();
+		populateWarnings();
 		$('#awiSettingsForm').hide();
 		$('#awiPageMask').hide();
 		// Add a new CSS declaration for this class (will override the previous one)
@@ -444,6 +454,7 @@ function addContainers() {
 	$('.PageHeading').after('<div id="awiInfoBarContainer" class="awi"></div>');
 	$('#awiInfoBarContainer').append('<span id="awiInfoBar"></span>');
 	$('#awiInfoBarContainer').append('<span id="awiSettingsLink"></span>');
+	$('#awiInfoBarContainer').prepend('<div id="awiWarning"></div>');
 }
 
 function getUserId() {
@@ -457,7 +468,7 @@ function getUserId() {
 
 function checkForBareback() {
 	if(preferences.indexOf('Bareback') > -1 || preferences.indexOf('Unprotected Sex') > -1) {
-		$('#awiInfoBarContainer').prepend('<div class="awiWarning">Caution: Enjoys bareback</div>');
+		warnings.push('<strong>Enjoys bareback</strong>');
 	}
 }
 
@@ -467,7 +478,35 @@ function checkAccessingFrom() {
 	patterns.accessingFrom.lastIndex = 0;
 	var tempMatch = patterns.accessingFrom.exec($('body').html());
 	if (tempMatch !== null) {
-		$('#awiInfoBarContainer').prepend('<div class="awiWarning">Accessing from ' + tempMatch[1] + '</div>');
+		warnings.push('Accessing from ' + tempMatch[1]);
+	}
+}
+
+function checkLastLogin() {
+	// Need to reset lastIndex or it will fail every other time,
+	// see http://stackoverflow.com/questions/3891641/regex-test-only-works-every-other-time
+	patterns.lastLogin.lastIndex = 0;
+	var tempMatch = patterns.lastLogin.exec($('body').html());
+	if (tempMatch !== null) {
+		var daysAgo;
+		if(tempMatch[1] === 'Today') {
+			daysAgo = 0;
+		} else if (tempMatch[1] === 'Yesterday') {
+			daysAgo = 1;
+		} else {
+			var dateParts = patterns.date.exec(tempMatch[1]);
+			// Month is zero-based so need to feed 5 to new Date call for June (ie "human" month minus 1)
+			var lastLoginDate = new Date(dateParts[3], dateParts[2]-1, dateParts[1]);
+			var today = new Date();
+			var d = today.getDate();
+			var m = today.getMonth();
+			var y = today.getFullYear();
+			today = new Date(y, m, d);
+			daysAgo = Math.floor((today-lastLoginDate) / (1000*60*60*24));
+		}
+		if (daysAgo > config.lastLoginWarningDays) {
+			warnings.push('Last Login: ' + tempMatch[1]);
+		}
 	}
 }
 
@@ -478,11 +517,25 @@ function fixAntiSocialBehaviour() {
 		.removeClass("unSelectable")
 		.removeAttr('onselectstart');
 	// Can't get the below to work with jQuery
-	for(i=0;i<document.images.length;i++) {document.images[i].oncontextmenu = null;}		
+	for(i=0;i<document.images.length;i++) {document.images[i].oncontextmenu = null;}
+}
+
+function populateWarnings() {
+	// Reset any previous warnings
+	warnings = [];
+	$('#awiWarning').hide();
+	$('#awiWarning').html('');
+	checkForBareback();
+	checkAccessingFrom();
+	checkLastLogin();
+	if(warnings.length > 0) {
+		$('#awiWarning').html('<strong>Warnings</strong>: ' + warnings.toString().replace(/,/g, ', '));
+		$('#awiWarning').show();
+	}
 }
 
 $(document).ready(function () {
-	fixAntiSocialBehaviour();
+    fixAntiSocialBehaviour();
 	addFullSizeImageLink();
 	var userId = getUserId();
 	if (userId !== 0) {
@@ -502,8 +555,7 @@ $(document).ready(function () {
 			addContainers();
 			populateInfoBar();
 			addSettingsLink();
-			checkForBareback();
-			checkAccessingFrom();
+			populateWarnings();
 		}
 	}
 });
