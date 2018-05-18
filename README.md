@@ -13,9 +13,11 @@ Tampermonkey (Chrome) Userscript to improve the experience on adultwork.com
   * Show a warning if the member is accessing from a different country than their profile states they are in
   * Show a warning if the member has not logged in for a user-configurable number of days
 * Add link to list of reviews on UK Punting (UKP) and show count of Positive, Neutral and Negative reviews
+* Add link to UKP search for profile ID (1.9.0)
 * Add link to Free Gallery allowing all images to be opened full size in a new window
 * Reinstate the ability to select text
 * Reinstate normal right-click functions (save image etc)
 * If no phone number displayed on profile, show last known number from UKP API
+* Add last login time for members in Hotlist (1.9.0)
 
 All text inserted into the page by this script is coloured (blue by default) so it can be readily identified.  This colour can be changed in the settings if desired.

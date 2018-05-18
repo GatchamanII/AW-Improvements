@@ -4,12 +4,12 @@
 // @description	Add UKP review link and counts to AW and moves some stats to the top of the page
 // @include		https://www.adultwork.com/*
 // @include		http://www.adultwork.com/*
-// @version		1.8.0
+// @version		1.9.0
 // @grant		GM_getValue
 // @grant		GM_setValue
 // @grant		GM_xmlhttpRequest
 // @connect		www.ukpunting.com
-// @require		https://code.jquery.com/jquery-3.1.0.min.js
+// @require		https://code.jquery.com/jquery-3.3.1.min.js
 // ==/UserScript==
 
 // GLOBAL VARIABLES =================================================
@@ -34,6 +34,7 @@ const durations = {
 };
 
 const configKey = "AWImprovementsConfig";
+const versionKey = "AWImprovementsVersion";
 
 const patterns = {
 	galleryImage : /javascript:vGI\('(\d+%2Ejpg)','.*', '\d+'\)/g,
@@ -46,7 +47,8 @@ const patterns = {
 	telephone : /<td><b itemprop="telephone">(.+)<\/b><\/td>/g,
 	accessingFrom : /<tr>\s*<td class="Label" align="right"><span class="HelpLink" title="The IP address from which this member is accessing the Internet is registered to a different Country than which they puport to be in\.">Accessing From<\/span>:<br><img border="0" src="images\/1px\.gif" width="1" height="1"><\/td>\s*<td>([^<]+)<\/td>\s*<\/tr>/g,
 	lastLogin : /<tr>\s*<td class="Label" align="right">Last Login:<\/td>\s*<td>([0-3][0-9]\/[0-1][0-9]\/20[0-9][0-9]|Yesterday|Today)<\/td>\s*<\/tr>/g,
-    date : /([0-3][0-9])\/([0-1][0-9])\/(20[0-9][0-9])/g
+    date : /([0-3][0-9])\/([0-1][0-9])\/(20[0-9][0-9])/g,
+    lastLoginTimes: /<tr>\s*<td><a href="javascript:void\(0\)" onclick="hotlistNotes\([0-9]+, '(?:[^']|\\')+'\)">Notes<\/td>\s*<td><input type="checkbox" name="cbxSelUserIDs" value="([0-9]+)"><\/td>\s*<td><a class="Label" href="javascript:vU\([0-9]+\)">[^<]+<\/a> \(<a href="javascript:void\(0\)" onclick="viewRating\([0-9]+\)" title="[^"]+">[0-9]+<\/a>\)<nobr>.*?<\/nobr><\/td>\s*<td>[^<]*<\/td>\s*<td>[^<]*<\/td>\s*<td align="center">(?:Today|Yesterday|<span class="HelpLink" title="[^"]+">[^<]+<\/span>) ([0-9]{2}:[0-9]{2})<\/td>\s*<td align="center">(?:Today|Yesterday|<span class="HelpLink" title="[^"]+">[^<]+<\/span>) [0-9]{2}:[0-9]{2}<\/td>\s*<td align="center">.*?<\/td>\s*<td align="center">.*?<\/td>\s*<\/tr>/g
 };
 
 // Some formatting options
@@ -154,8 +156,24 @@ const lastKnownTelRow = `<tr id="awiLastKnownTel">
 	</table></td>
 </tr>`;
 
+const newInThisVersion = `New in this version:
+- Link to UKP Search for profile ID
+- Last Login Time for members in your Hotlist`;
+
+var spacedSeparator = ' ' + separator + ' ';
+
+function doHttpGet(url, onloadCallback, onloadParam) {
+	var ret = GM_xmlhttpRequest({
+		method: "GET",
+		url: url,
+		onload: function(res) {
+			onloadCallback(res.responseText, onloadParam);
+		}
+	});
+}
+
 function addCss() {
-	$('head').append(cssCode.replace(/%COLOUR%/g, config.colour));
+    $('head').append(cssCode.replace(/%COLOUR%/g, config.colour));
 }
 
 function loadConfig() {
@@ -198,6 +216,24 @@ function viewFullSizeImages() {
 	var newWindow = window.open();
 	var html = document.getElementById("galleryPageContent").innerHTML.replace(/data-src/g,"src");
 	newWindow.document.write(html);
+}
+
+// Client side function to be injected
+// Adapted from https://stackoverflow.com/a/27208677
+function getToPost(e) {
+    e.stopPropagation();
+    e.preventDefault();
+    var href = this.href;
+    var parts = href.split('&');
+    var url = parts[0];
+    var params = parts[1].split('&');
+    var pp, inputs = '';
+    for(var i = 0, n = params.length; i < n; i++) {
+        pp = params[i].split('=');
+        inputs += '<input type="hidden" name="' + pp[0] + '" value="' + pp[1] + '" />';
+    }
+    $("body").append('<form action="'+url+'" method="post" id="poster">'+inputs+'</form>');
+    $("#poster").submit();
 }
 
 // FUNCTIONS TO EXRACT DATA FROM HTML TABLES ========================
@@ -301,12 +337,17 @@ function addUKPLinkToList() {
 }
 
 function addUKPLinkToProfile(userId) {
-	// First add the UKP link via Google (as per the original script) in case the API doesn't work for some reason
-	var target = "<a href=\"javascript:void(0)\" onclick=\"viewRating";
-	var replacement1 = "<a target=\"_blank\" href=\"//www.google.com/webhp?#q=inurl%3A%22ukpunting.com%2Findex.php%3Faction%3Dserviceprovider%22+"+userId+"\" class=\"awi\">UKP</a>&nbsp;&nbsp;&nbsp;"+target;
+    inject(getToPost);
+	// First add the "Adultwork ID" UKP review link in case the API doesn't work for some reason
+    // var searchLink = '<a class="post awi" href="https://www.ukpunting.com/index.php?index.php?action=searchposts2&query=' + userId + '">UKP Search</a>'; // + spacedSeparator;
+    var searchLink = '<a class="post awi" href="https://www.ukpunting.com/index.php?action=searchposts2&query=' + userId +'">UKP Search</a>' + spacedSeparator;
+    var target = '<a href="javascript:void(0)" onclick="viewRating';
+	var replacement1 = searchLink + '<a target="_blank" href="https://www.ukpunting.com/index.php?action=adultwork;id=' + userId + '" class="awi">UKP Reviews</a>&nbsp;&nbsp;&nbsp;' + target;
+    var replacement1encoded = replacement1.replace('&', '&amp;');
 	document.body.innerHTML = document.body.innerHTML.replace(target,replacement1);
+    $("a.post").click(getToPost);
 
-	// Second, call the API, and if OK replace the Google search links with links direct to UKP and add review counts
+	// Second, call the API, and if OK replace the review link and add review counts
 	var ret = GM_xmlhttpRequest({
 		method: "GET",
 		url: "https://www.ukpunting.com/aw2ukp.php?id="+userId,
@@ -322,9 +363,10 @@ function addUKPLinkToProfile(userId) {
 				reviews += "<span style=\"color:" + negColour + "\">" + ukpData.negative_count + "</span>";
 				reviews += ")";
 				var replacement2 = "<span title=\"" + reviewTooltip + "\">";
-				replacement2 += "<a target=\"_blank\" href=\"https://www.ukpunting.com/index.php?action=serviceprovider;id="+ukpData.service_provider_id+"\" class=\"awi\">UKP</a>";
+				replacement2 += searchLink + "<a target=\"_blank\" href=\"https://www.ukpunting.com/index.php?action=serviceprovider;id="+ukpData.service_provider_id+"\" class=\"awi\">UKP Reviews</a>";
 				replacement2 += "&nbsp;"+reviews+"</span>&nbsp;&nbsp;&nbsp;"+target;
-				document.body.innerHTML = document.body.innerHTML.replace(replacement1,replacement2);
+                document.body.innerHTML = document.body.innerHTML.replace(replacement1encoded,replacement2);
+                $("a.post").click(getToPost);
 			}
 			if (ukpData.tel_no !== ''){
 				// var telephone;
@@ -353,7 +395,6 @@ function addUKPLinkToProfile(userId) {
 function populateInfoBar() {
 
 	var town = '', county = '', postcode = '', chest = '', rate = '&pound;???';
-	var spacedSeparator = ' ' + separator + ' ';
 
 	// Age
 	var info = profile.Age;
@@ -534,7 +575,60 @@ function populateWarnings() {
 	}
 }
 
+function loadLastLoginTimes(callback, param) {
+    doHttpGet("https://www.adultwork.com/ManageHotList.asp", callback, param);
+}
+
+function displayLastLoginTimeOnProfile(hotlistHtml, userId) {
+    var tooltip = "", link = "", text = "";
+    if (hotlistHtml.includes('<td class="PageHeading">Login or Register</td>')) {
+        text = "??:??";
+        tooltip = "Login to see last login times for SPs who are in your hotlist";
+        link = "https://www.adultwork.com/Login.asp?TargetURL=/" + userId;
+    } else {
+        // parse page
+        var lastLoginTimes = {};
+        var tempMatch, value;
+        while ((tempMatch = patterns.lastLoginTimes.exec(hotlistHtml)) !== null) {
+            lastLoginTimes[tempMatch[1]] = tempMatch[2];
+        }
+        if (userId in lastLoginTimes) {
+            text = lastLoginTimes[userId];
+        } else {
+            text = "??:??";
+            tooltip = "Add this SP to your hotlist to see last login time";
+            link = "javascript:addToHotList()";
+        }
+    }
+    if (text !=="") {
+        if (tooltip !=="") {
+            text = '<a class="awi HelpLink" title="' + tooltip + '" href="' + link + '">at ' + text + '</a>';
+        } else {
+            text = '<span class="awi">at ' + text + '</span>';
+        }
+        $("td.Label:contains(Last Login:)").next().append(' ' + text);
+    }
+}
+
+function checkIfUpdate() {
+    var lastVersion = GM_getValue(versionKey, 0);
+    var thisVersion = GM_info.script.version;
+    var msg = '';
+    if (lastVersion != thisVersion) {
+        msg = 'AW Improvements updated ';
+        if (lastVersion !==0) {
+            msg += 'from ' + lastVersion;
+        }
+        msg += 'to ' + thisVersion;
+        msg += '\n\n';
+        msg += newInThisVersion;
+        alert(msg);
+        GM_setValue(versionKey, GM_info.script.version);
+    }
+}
+
 $(document).ready(function () {
+    checkIfUpdate();
     fixAntiSocialBehaviour();
 	addFullSizeImageLink();
 	var userId = getUserId();
@@ -556,6 +650,7 @@ $(document).ready(function () {
 			populateInfoBar();
 			addSettingsLink();
 			populateWarnings();
+			loadLastLoginTimes(displayLastLoginTimeOnProfile, userId);
 		}
 	}
 });
