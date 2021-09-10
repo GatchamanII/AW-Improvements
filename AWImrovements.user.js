@@ -632,7 +632,7 @@ function fixMiddleClick () {
   document.body.addEventListener('auxclick', e => {
     if (e.target.attributes.onclick.textContent.startsWith('sU(')) {
       // This is really dirty and I'm sorry but, I'm very lazy.
-      preventDefault()
+      e.preventDefault()
       let id = e.target.attributes.onclick.textContent.split('(')[1].split(',')[0]
       window.open('https://www.adultwork.com/' + id)
     }
