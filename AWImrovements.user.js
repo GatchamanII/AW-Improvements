@@ -627,10 +627,25 @@ function checkIfUpdate() {
     }
 }
 
+// This was a very fast fix for something that was annoying me.
+function fixMiddleClick () {
+  document.body.addEventListener('auxclick', e => {
+    let generalArea = e.target.attributes.onclick.textContent.startsWith('sU(')
+		let featureArea = e.target.attributes.onclick.textContent.startsWith('sUF(')
+		if (generalArea || featureArea) {
+      // This is really dirty and I'm sorry but, I'm very lazy.
+      e.preventDefault()
+      let id = e.target.attributes.onclick.textContent.split('(')[1].split(',')[0]
+      window.open('https://www.adultwork.com/' + id)
+    }
+   })
+}
+
 $(document).ready(function () {
     checkIfUpdate();
     fixAntiSocialBehaviour();
 	addFullSizeImageLink();
+	fixMiddleClick()
 	var userId = getUserId();
 	if (userId !== 0) {
 		addUKPLinkToProfile(userId);
