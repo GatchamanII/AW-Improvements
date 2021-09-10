@@ -630,7 +630,9 @@ function checkIfUpdate() {
 // This was a very fast fix for something that was annoying me.
 function fixMiddleClick () {
   document.body.addEventListener('auxclick', e => {
-    if (e.target.attributes.onclick.textContent.startsWith('sU(')) {
+    let generalArea = e.target.attributes.onclick.textContent.startsWith('sU(')
+		let featureArea = e.target.attributes.onclick.textContent.startsWith('UF(')
+		if (generalArea || featureArea) {
       // This is really dirty and I'm sorry but, I'm very lazy.
       e.preventDefault()
       let id = e.target.attributes.onclick.textContent.split('(')[1].split(',')[0]
